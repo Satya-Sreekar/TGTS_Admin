@@ -1,8 +1,9 @@
 import axios from 'axios';
 
 // Get API URL from environment or use default
-// Backend is running on port 80
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:80/api';
+// Production backend: https://apitgts.codeology.solutions
+// Development: http://localhost:80
+const API_URL = import.meta.env.VITE_API_URL || 'https://apitgts.codeology.solutions/api';
 
 console.log('API Base URL:', API_URL); // Debug log
 
@@ -46,7 +47,7 @@ api.interceptors.response.use(
         // window.location.href = '/login'; // Commented out for now since we don't have login page yet
       }
     } else if (error.code === 'ECONNREFUSED' || error.code === 'ERR_NETWORK') {
-      console.error('Backend server is not reachable. Please ensure the backend is running on http://localhost:80');
+      console.error('Backend server is not reachable. Please check your connection and ensure the backend is running.');
     }
     return Promise.reject(error);
   }

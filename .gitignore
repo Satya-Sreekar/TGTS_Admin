@@ -25,3 +25,9 @@ dist-ssr
 
 # Backend code (should be in separate repo)
 TGTS_Backend/
+
+# Environment variables
+.env
+.env.local
+.env.production.local
+.env.development.local
