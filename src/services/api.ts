@@ -34,8 +34,15 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    // Log error for debugging
-    console.error('API Error:', error.message);
+    // Log full error for debugging
+    console.error('API Error:', {
+      message: error.message,
+      code: error.code,
+      status: error.response?.status,
+      url: error.config?.url,
+      baseURL: error.config?.baseURL,
+      fullError: error
+    });
     
     if (error.response?.status === 401) {
       // Handle unauthorized - clear token and redirect to login
@@ -46,8 +53,20 @@ api.interceptors.response.use(
       if (window.location.pathname !== '/login') {
         // window.location.href = '/login'; // Commented out for now since we don't have login page yet
       }
-    } else if (error.code === 'ECONNREFUSED' || error.code === 'ERR_NETWORK') {
+    } else if (error.response?.status === 0 || error.code === 'ERR_NETWORK' || error.code === 'ECONNREFUSED') {
+      // Network error - could be CORS, connection refused, or server down
+      const apiUrl = error.config?.baseURL || API_URL;
+      console.error('Network error connecting to backend:', apiUrl);
+      console.error('This could be due to:');
+      console.error('1. CORS configuration issue - backend needs to allow your domain');
+      console.error('2. Backend server is not running or not accessible');
+      console.error('3. Network connectivity issues');
+      console.error('Current origin:', window.location.origin);
+      console.error('Backend URL:', apiUrl);
       console.error('Backend server is not reachable. Please check your connection and ensure the backend is running.');
+    } else if (error.response?.status) {
+      // HTTP error response received
+      console.error(`HTTP ${error.response.status}: ${error.response.statusText}`);
     }
     return Promise.reject(error);
   }
