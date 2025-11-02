@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Image, Video, UploadCloud, CheckCircle, AlertCircle, Eye } from "lucide-react";
+import { Image, Video, UploadCloud, CheckCircle, AlertCircle, Eye, X } from "lucide-react";
 import { mediaService } from "../../services/mediaService";
 import type { MediaItem } from "../../services/mediaService";
 
@@ -18,18 +18,67 @@ export default function MediaManagement() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalMedia, setTotalMedia] = useState(0);
+  const [totalPhotos, setTotalPhotos] = useState(0);
+  const [totalVideos, setTotalVideos] = useState(0);
+  const [selectedMedia, setSelectedMedia] = useState<MediaItem | null>(null);
+  const [activeFilter, setActiveFilter] = useState<'photo' | 'video' | null>(null);
 
+  // Reset to page 1 when filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeFilter]);
+
+  // Load media when page or filter changes
   useEffect(() => {
     loadMedia();
-  }, [currentPage]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPage, activeFilter]);
+
+  // Load totals once on mount
+  useEffect(() => {
+    loadTotals();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const loadTotals = async () => {
+    try {
+      const [allResponse, photosResponse, videosResponse] = await Promise.all([
+        mediaService.getMedia({ page: 1, per_page: 1 }),
+        mediaService.getMedia({ page: 1, per_page: 1, type: 'photo' }),
+        mediaService.getMedia({ page: 1, per_page: 1, type: 'video' }),
+      ]);
+      setTotalMedia(allResponse.total);
+      setTotalPhotos(photosResponse.total);
+      setTotalVideos(videosResponse.total);
+    } catch (err) {
+      console.error("Failed to load totals:", err);
+    }
+  };
+
+  // Handle Escape key to close media modal
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && selectedMedia) {
+        setSelectedMedia(null);
+      }
+    };
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, [selectedMedia]);
 
   const loadMedia = async () => {
     try {
       setLoading(true);
-      const response = await mediaService.getMedia({ page: currentPage, per_page: 12 });
+      const filters: { page: number; per_page: number; type?: 'photo' | 'video' } = {
+        page: currentPage,
+        per_page: 12,
+      };
+      if (activeFilter) {
+        filters.type = activeFilter;
+      }
+      const response = await mediaService.getMedia(filters);
       setMediaItems(response.media);
       setTotalPages(response.pages);
-      setTotalMedia(response.total);
     } catch (err) {
       console.error("Failed to load media:", err);
     } finally {
@@ -93,6 +142,7 @@ export default function MediaManagement() {
         setShowUploadModal(false);
         setSuccess(false);
         loadMedia(); // Reload media list
+        loadTotals(); // Reload totals to update counters
       }, 2000);
 
     } catch (err: any) {
@@ -104,8 +154,9 @@ export default function MediaManagement() {
     }
   };
 
-  const photoCount = mediaItems.filter(item => item.type === 'photo').length;
-  const videoCount = mediaItems.filter(item => item.type === 'video').length;
+  const handleFilterClick = (filter: 'photo' | 'video' | null) => {
+    setActiveFilter(filter === activeFilter ? null : filter);
+  };
 
   return (
     <div className="space-y-4">
@@ -126,39 +177,66 @@ export default function MediaManagement() {
 
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4">
-        <div className="bg-white rounded-lg shadow-card p-4">
+        <button
+          onClick={() => handleFilterClick(null)}
+          className={`bg-white rounded-lg shadow-card p-4 transition-all hover:shadow-lg ${
+            activeFilter === null ? 'ring-2 ring-orange-500' : ''
+          }`}
+        >
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <Image className="w-5 h-5 text-blue-600" />
+            <div className={`p-2 rounded-lg ${
+              activeFilter === null ? 'bg-orange-100' : 'bg-blue-100'
+            }`}>
+              <Image className={`w-5 h-5 ${
+                activeFilter === null ? 'text-orange-600' : 'text-blue-600'
+              }`} />
             </div>
             <div>
               <div className="text-2xl font-semibold">{totalMedia}</div>
               <div className="text-sm text-gray-500">Total Media</div>
             </div>
           </div>
-        </div>
-        <div className="bg-white rounded-lg shadow-card p-4">
+        </button>
+        <button
+          onClick={() => handleFilterClick('photo')}
+          className={`bg-white rounded-lg shadow-card p-4 transition-all hover:shadow-lg cursor-pointer ${
+            activeFilter === 'photo' ? 'ring-2 ring-orange-500' : ''
+          }`}
+        >
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-green-100 rounded-lg">
-              <Image className="w-5 h-5 text-green-600" />
+            <div className={`p-2 rounded-lg ${
+              activeFilter === 'photo' ? 'bg-orange-100' : 'bg-green-100'
+            }`}>
+              <Image className={`w-5 h-5 ${
+                activeFilter === 'photo' ? 'text-orange-600' : 'text-green-600'
+              }`} />
             </div>
             <div>
-              <div className="text-2xl font-semibold">{photoCount}</div>
+              <div className="text-2xl font-semibold">{totalPhotos}</div>
               <div className="text-sm text-gray-500">Photos</div>
             </div>
           </div>
-        </div>
-        <div className="bg-white rounded-lg shadow-card p-4">
+        </button>
+        <button
+          onClick={() => handleFilterClick('video')}
+          className={`bg-white rounded-lg shadow-card p-4 transition-all hover:shadow-lg cursor-pointer ${
+            activeFilter === 'video' ? 'ring-2 ring-orange-500' : ''
+          }`}
+        >
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-purple-100 rounded-lg">
-              <Video className="w-5 h-5 text-purple-600" />
+            <div className={`p-2 rounded-lg ${
+              activeFilter === 'video' ? 'bg-orange-100' : 'bg-purple-100'
+            }`}>
+              <Video className={`w-5 h-5 ${
+                activeFilter === 'video' ? 'text-orange-600' : 'text-purple-600'
+              }`} />
             </div>
             <div>
-              <div className="text-2xl font-semibold">{videoCount}</div>
+              <div className="text-2xl font-semibold">{totalVideos}</div>
               <div className="text-sm text-gray-500">Videos</div>
             </div>
           </div>
-        </div>
+        </button>
       </div>
 
       {/* Media Grid */}
@@ -182,11 +260,15 @@ export default function MediaManagement() {
                     <img 
                       src={item.thumbnail || item.url} 
                       alt={item.title.en}
-                      className="w-full h-48 object-cover"
+                      className="w-full h-48 object-cover cursor-pointer"
+                      onClick={() => setSelectedMedia(item)}
                     />
                   ) : (
-                    <div className="w-full h-48 bg-gray-800 flex items-center justify-center relative">
-                      <Video className="w-12 h-12 text-white" />
+                    <div 
+                      className="w-full h-48 bg-gray-800 flex items-center justify-center relative cursor-pointer"
+                      onClick={() => setSelectedMedia(item)}
+                    >
+                      <Video className="w-12 h-12 text-white z-10" />
                       <img 
                         src={item.thumbnail} 
                         alt={item.title.en}
@@ -205,7 +287,7 @@ export default function MediaManagement() {
                       </span>
                       <div className="flex gap-1">
                         <button 
-                          onClick={() => window.open(item.url, '_blank')}
+                          onClick={() => setSelectedMedia(item)}
                           className="p-1 hover:bg-gray-100 rounded"
                           title="View"
                         >
@@ -373,6 +455,67 @@ export default function MediaManagement() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Media Preview Modal */}
+      {selectedMedia && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50"
+          onClick={() => setSelectedMedia(null)}
+        >
+          <div className="relative max-w-7xl max-h-[90vh] p-4 w-full flex flex-col">
+            <button
+              onClick={() => setSelectedMedia(null)}
+              className="absolute top-6 right-6 p-2 bg-black bg-opacity-50 rounded-full text-white hover:bg-opacity-70 transition-colors z-10"
+              title="Close"
+            >
+              <X className="w-6 h-6" />
+            </button>
+            {/* Title at top for videos */}
+            {selectedMedia.type === 'video' && (
+              <div 
+                className="mb-4 bg-black bg-opacity-50 rounded-lg p-4 text-white"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="font-semibold text-lg">{selectedMedia.title.en}</div>
+                {selectedMedia.title.te && (
+                  <div className="text-sm text-gray-300 mt-1">{selectedMedia.title.te}</div>
+                )}
+              </div>
+            )}
+            <div className="flex-1 flex items-center justify-center min-h-0">
+              {selectedMedia.type === 'photo' ? (
+                <img
+                  src={selectedMedia.url}
+                  alt={selectedMedia.title.en}
+                  className="max-w-full max-h-full object-contain rounded-lg mx-auto"
+                  onClick={(e) => e.stopPropagation()}
+                />
+              ) : (
+                <video
+                  src={selectedMedia.url}
+                  controls
+                  className="max-w-full max-h-full rounded-lg mx-auto"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  Your browser does not support the video tag.
+                </video>
+              )}
+            </div>
+            {/* Title at bottom for images */}
+            {selectedMedia.type === 'photo' && (
+              <div 
+                className="mt-4 bg-black bg-opacity-50 rounded-lg p-4 text-white"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="font-semibold text-lg">{selectedMedia.title.en}</div>
+                {selectedMedia.title.te && (
+                  <div className="text-sm text-gray-300 mt-1">{selectedMedia.title.te}</div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}
