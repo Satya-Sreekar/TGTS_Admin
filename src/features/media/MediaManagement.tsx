@@ -161,14 +161,14 @@ export default function MediaManagement() {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold">Media Gallery</h1>
-          <p className="text-sm text-gray-500">Manage photos and videos</p>
+          <h1 className="text-xl sm:text-2xl font-semibold">Media Gallery</h1>
+          <p className="text-xs sm:text-sm text-gray-500">Manage photos and videos</p>
         </div>
         <button 
           onClick={() => setShowUploadModal(true)}
-          className="flex items-center gap-2 px-4 py-2 rounded-md bg-orange-500 text-white hover:bg-orange-600"
+          className="flex items-center justify-center gap-2 px-4 py-2 rounded-md bg-orange-500 text-white hover:bg-orange-600 transition-colors text-sm sm:text-base"
         >
           <UploadCloud className="w-4 h-4" />
           Upload Media
@@ -176,7 +176,7 @@ export default function MediaManagement() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <button
           onClick={() => handleFilterClick(null)}
           className={`bg-white rounded-lg shadow-card p-4 transition-all hover:shadow-lg ${
@@ -253,7 +253,7 @@ export default function MediaManagement() {
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
               {mediaItems.map((item) => (
                 <div key={item.id} className="group relative rounded-lg overflow-hidden border hover:shadow-lg transition-shadow">
                   {item.type === 'photo' ? (
@@ -328,9 +328,9 @@ export default function MediaManagement() {
 
       {/* Upload Modal */}
       {showUploadModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-lg p-6">
-            <h2 className="text-xl font-semibold mb-4">Upload Media</h2>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-lg p-4 sm:p-6 my-auto">
+            <h2 className="text-lg sm:text-xl font-semibold mb-4">Upload Media</h2>
 
             {/* Success Message */}
             {success && (
@@ -399,7 +399,7 @@ export default function MediaManagement() {
                 <label className="text-sm font-medium">Title (English) *</label>
                 <input
                   type="text"
-                  className="mt-1 w-full px-3 py-2 rounded-md border focus:outline-none focus:ring-2 focus:ring-orange-300"
+                  className="mt-1 w-full px-3 py-2 rounded-md border bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-300"
                   placeholder="Enter title in English"
                   value={titleEn}
                   onChange={(e) => setTitleEn(e.target.value)}
@@ -411,7 +411,7 @@ export default function MediaManagement() {
                 <label className="text-sm font-medium">Title (Telugu)</label>
                 <input
                   type="text"
-                  className="mt-1 w-full px-3 py-2 rounded-md border focus:outline-none focus:ring-2 focus:ring-orange-300"
+                  className="mt-1 w-full px-3 py-2 rounded-md border bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-300"
                   placeholder="తెలుగులో శీర్షికను నమోదు చేయండి"
                   value={titleTe}
                   onChange={(e) => setTitleTe(e.target.value)}
@@ -462,16 +462,16 @@ export default function MediaManagement() {
       {/* Media Preview Modal */}
       {selectedMedia && (
         <div 
-          className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50"
+          className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50 p-2 sm:p-4"
           onClick={() => setSelectedMedia(null)}
         >
-          <div className="relative max-w-7xl max-h-[90vh] p-4 w-full flex flex-col">
+          <div className="relative max-w-7xl max-h-[90vh] w-full flex flex-col">
             <button
               onClick={() => setSelectedMedia(null)}
-              className="absolute top-6 right-6 p-2 bg-black bg-opacity-50 rounded-full text-white hover:bg-opacity-70 transition-colors z-10"
+              className="absolute top-2 right-2 sm:top-6 sm:right-6 p-2 bg-black bg-opacity-50 rounded-full text-white hover:bg-opacity-70 transition-colors z-10"
               title="Close"
             >
-              <X className="w-6 h-6" />
+              <X className="w-5 h-5 sm:w-6 sm:h-6" />
             </button>
             {/* Title at top for videos */}
             {selectedMedia.type === 'video' && (

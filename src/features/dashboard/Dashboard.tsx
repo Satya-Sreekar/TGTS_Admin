@@ -78,8 +78,8 @@ export default function Dashboard() {
   return (
     <>
       <div className="mb-4">
-        <h1 className="text-2xl font-semibold">Dashboard</h1>
-        <p className="text-sm text-gray-500">Overview of key metrics and activities</p>
+        <h1 className="text-xl sm:text-2xl font-semibold">Dashboard</h1>
+        <p className="text-xs sm:text-sm text-gray-500">Overview of key metrics and activities</p>
         {error && (
           <div className="mt-2 text-xs text-orange-600 bg-orange-50 px-3 py-2 rounded-md">
             {error}
@@ -87,10 +87,10 @@ export default function Dashboard() {
         )}
       </div>
 
-      <div className="grid grid-cols-12 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-4 sm:gap-6">
         {/* Stats */}
-        <div className="col-span-12 grid grid-cols-12 gap-6">
-          <div className="col-span-3">
+        <div className="col-span-1 sm:col-span-2 lg:col-span-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+          <div className="col-span-1">
             <StatCard 
               icon={Users} 
               value={stats?.total_users.toLocaleString() || "15,428"} 
@@ -99,7 +99,7 @@ export default function Dashboard() {
               trend="up" 
             />
           </div>
-          <div className="col-span-3">
+          <div className="col-span-1">
             <StatCard 
               icon={Activity} 
               value={stats?.active_users.toLocaleString() || "8,942"} 
@@ -108,7 +108,7 @@ export default function Dashboard() {
               trend="up" 
             />
           </div>
-          <div className="col-span-3">
+          <div className="col-span-1">
             <StatCard 
               icon={Megaphone} 
               value={stats?.published_news.toLocaleString() || "124"} 
@@ -117,7 +117,7 @@ export default function Dashboard() {
               trend="up" 
             />
           </div>
-          <div className="col-span-3">
+          <div className="col-span-1">
             <StatCard 
               icon={CalendarDays} 
               value={stats?.upcoming_events.toString() || "42"} 
@@ -129,7 +129,7 @@ export default function Dashboard() {
         </div>
 
         {/* Membership Growth */}
-        <div className="col-span-7">
+        <div className="col-span-1 sm:col-span-2 lg:col-span-7">
           <SectionCard title="Membership Growth">
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
@@ -145,7 +145,7 @@ export default function Dashboard() {
         </div>
 
         {/* Members by Region */}
-        <div className="col-span-5">
+        <div className="col-span-1 sm:col-span-2 lg:col-span-5">
           <SectionCard title="Members by Region">
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
@@ -163,7 +163,7 @@ export default function Dashboard() {
         </div>
 
         {/* User Engagement */}
-        <div className="col-span-7">
+        <div className="col-span-1 sm:col-span-2 lg:col-span-7">
           <SectionCard title="User Engagement">
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
@@ -179,17 +179,17 @@ export default function Dashboard() {
         </div>
 
         {/* Recent Activity */}
-        <div className="col-span-5">
+        <div className="col-span-1 sm:col-span-2 lg:col-span-5">
           <SectionCard title="Recent Activity">
             <ul className="space-y-3">
               {stats?.recent_activity && stats.recent_activity.length > 0 ? (
                 stats.recent_activity.slice(0, 3).map((activity, index) => (
                   <li key={index} className="flex items-start justify-between">
-                    <div>
-                      <div className="text-sm">{activity.title}</div>
-                      <div className="text-xs text-gray-500">{activity.type}</div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm truncate">{activity.title}</div>
+                      <div className="text-xs text-gray-500 truncate">{activity.type}</div>
                     </div>
-                    <span className="text-xs text-gray-500">
+                    <span className="text-xs text-gray-500 ml-2 flex-shrink-0">
                       {new Date(activity.timestamp).toLocaleTimeString('en-US', { 
                         hour: 'numeric', 
                         minute: '2-digit' 
@@ -200,25 +200,25 @@ export default function Dashboard() {
               ) : (
                 <>
                   <li className="flex items-start justify-between">
-                    <div>
-                      <div className="text-sm">New member enrolled</div>
-                      <div className="text-xs text-gray-500">Rajesh Kumar · Hyderabad</div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm truncate">New member enrolled</div>
+                      <div className="text-xs text-gray-500 truncate">Rajesh Kumar · Hyderabad</div>
                     </div>
-                    <span className="text-xs text-gray-500">2m ago</span>
+                    <span className="text-xs text-gray-500 ml-2 flex-shrink-0">2m ago</span>
                   </li>
                   <li className="flex items-start justify-between">
-                    <div>
-                      <div className="text-sm">Post pushed to 4 districts</div>
-                      <div className="text-xs text-gray-500">Social team</div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm truncate">Post pushed to 4 districts</div>
+                      <div className="text-xs text-gray-500 truncate">Social team</div>
                     </div>
-                    <span className="text-xs text-gray-500">15m ago</span>
+                    <span className="text-xs text-gray-500 ml-2 flex-shrink-0">15m ago</span>
                   </li>
                   <li className="flex items-start justify-between">
-                    <div>
-                      <div className="text-sm">Event created</div>
-                      <div className="text-xs text-gray-500">Nizamabad · Roadshow</div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm truncate">Event created</div>
+                      <div className="text-xs text-gray-500 truncate">Nizamabad · Roadshow</div>
                     </div>
-                    <span className="text-xs text-gray-500">1h ago</span>
+                    <span className="text-xs text-gray-500 ml-2 flex-shrink-0">1h ago</span>
                   </li>
                 </>
               )}
