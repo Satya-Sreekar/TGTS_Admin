@@ -35,10 +35,19 @@ export type MediaFilters = {
   type?: 'photo' | 'video';
 };
 
+export type MediaStats = {
+  photo_count: number;
+  video_count: number;
+  total_count: number;
+  updated_at?: string;
+};
+
 export const mediaService = {
-  // Get all published media items
+  // Get all media items (admin can see all, including unpublished)
   async getMedia(filters: MediaFilters = {}): Promise<MediaListResponse> {
-    const response = await api.get('/media/', { params: filters });
+    // Add 'all=true' parameter to get all items including unpublished (for admin panel)
+    const params = { ...filters, all: 'true' };
+    const response = await api.get('/media/', { params });
     return response.data;
   },
 
@@ -85,6 +94,33 @@ export const mediaService = {
     };
     console.log('About to create media with:', createData);
     return this.createMedia(createData);
+  },
+
+  // Update media item
+  async updateMedia(mediaId: string, data: Partial<CreateMediaRequest>): Promise<MediaItem> {
+    const response = await api.put(`/media/${mediaId}`, data);
+    return response.data;
+  },
+
+  // Delete media item permanently
+  async deleteMedia(mediaId: string): Promise<void> {
+    await api.delete(`/media/${mediaId}`);
+  },
+
+  // Publish media item
+  async publishMedia(mediaId: string): Promise<MediaItem> {
+    return this.updateMedia(mediaId, { is_published: true });
+  },
+
+  // Unpublish media item
+  async unpublishMedia(mediaId: string): Promise<MediaItem> {
+    return this.updateMedia(mediaId, { is_published: false });
+  },
+
+  // Get media statistics (photo and video counts)
+  async getMediaStats(): Promise<MediaStats> {
+    const response = await api.get('/media/stats');
+    return response.data;
   },
 };
 

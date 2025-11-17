@@ -1,13 +1,16 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { authService } from '../services/authService';
-import type { User } from '../services/authService';
+import type { AdminLoginResponse } from '../services/authService';
+
+type User = AdminLoginResponse['user'];
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
   isAuthenticated: boolean;
   login: (phone: string, otp: string) => Promise<void>;
+  adminLogin: (username: string, password: string) => Promise<void>;
   logout: () => void;
   updateUser: (user: User) => void;
 }
@@ -34,10 +37,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     // Check if user is already logged in
     const initAuth = async () => {
       try {
-        const currentUser = authService.getCurrentUser();
-        if (currentUser && authService.isAuthenticated()) {
-          console.log('Found stored user, skipping API verification for now');
-          setUser(currentUser);
+        const storedUser = authService.getStoredUser();
+        if (storedUser && authService.isAuthenticated()) {
+          console.log('Found stored user');
+          setUser(storedUser);
         }
       } catch (error) {
         console.error('Auth initialization error:', error);
@@ -50,8 +53,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     initAuth();
   }, []);
 
-  const login = async (phone: string, otp: string) => {
-    const response = await authService.verifyOTP({ phone, otp });
+  const login = async (_phone: string, _otp: string) => {
+    // OTP-based login (for mobile app)
+    // This can be implemented if needed
+    throw new Error('OTP login not implemented in admin panel');
+  };
+
+  const adminLogin = async (username: string, password: string) => {
+    const response = await authService.adminLogin({ username, password });
+    authService.storeAuth(response.access_token, response.user);
     setUser(response.user);
   };
 
@@ -70,6 +80,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     loading,
     isAuthenticated: !!user,
     login,
+    adminLogin,
     logout,
     updateUser,
   };

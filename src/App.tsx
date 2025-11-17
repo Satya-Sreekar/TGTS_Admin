@@ -1,4 +1,4 @@
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import AppLayout from "./layout/AppLayout";
 import Dashboard from "./features/dashboard/Dashboard";
 import UserManagement from "./features/users/UserManagement";
@@ -7,13 +7,23 @@ import EventManagement from "./features/events/EventManagement";
 import PagePlaceholder from "./pages/PagePlaceholder";
 import UploadDocuments from "./features/documents/UploadDocuments";
 import MediaManagement from "./features/media/MediaManagement";
+import Login from "./pages/Login";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 export default function App() {
   console.log('App component rendering');
   
   return (
     <Routes>
-      <Route path="/" element={<AppLayout />}>
+      <Route path="/login" element={<Login />} />
+      <Route
+        path="/"
+        element={
+          <ProtectedRoute>
+            <AppLayout />
+          </ProtectedRoute>
+        }
+      >
         <Route index element={<Dashboard />} />
         <Route path="users" element={<UserManagement />} />
         <Route path="content" element={<ContentPush />} />
@@ -22,6 +32,7 @@ export default function App() {
         <Route path="analytics" element={<PagePlaceholder title="Analytics" />} />
         <Route path="uploads" element={<UploadDocuments />} />
       </Route>
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }

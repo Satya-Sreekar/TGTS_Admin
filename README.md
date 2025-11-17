@@ -40,11 +40,20 @@ cd TGTS_Admin
 npm install
 ```
 
-3. Create a `.env.local` file (optional, for local development):
-```bash
-# API URL for local development
-VITE_API_URL=http://localhost:80/api
-```
+3. Configure API endpoint (optional, defaults to localhost for development):
+   
+   Create a `.env.local` file for local development:
+   ```bash
+   # Set to true to use production API, false for local development
+   VITE_USE_PRODUCTION=false
+   
+   # Local API URL (default: http://localhost:5000/api)
+   # Change this if your Flask backend runs on a different port
+   VITE_API_URL=http://localhost:5000/api
+   ```
+   
+   **Note:** By default, the app uses `http://localhost:5000/api` for local development.
+   To use production API, set `VITE_USE_PRODUCTION=true` in your `.env.local` file.
 
 4. Start the development server:
 ```bash
@@ -90,12 +99,17 @@ The built files will be in the `dist` directory.
 4. **Set Environment Variables**
    - In the Amplify Console, go to your app settings
    - Navigate to "Environment variables"
-   - Add the following variable (optional, since production URL is already the default):
+   - Add the following variable to use production API:
+     ```
+     Key: VITE_USE_PRODUCTION
+     Value: true
+     ```
+   - Optionally, you can also set a custom API URL:
      ```
      Key: VITE_API_URL
      Value: https://apitgts.codeology.solutions/api
      ```
-   - Note: The production backend URL is already set as the default in the code
+   - **Note:** The production backend URL (`https://apitgts.codeology.solutions/api`) is hardcoded and will be used when `VITE_USE_PRODUCTION=true`
 
 5. **Configure Custom Headers (for CORS)**
    - In Amplify Console, go to "Rewrites and redirects"

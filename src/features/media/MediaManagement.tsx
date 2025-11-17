@@ -1,7 +1,15 @@
-import { useState, useEffect } from "react";
-import { Image, Video, UploadCloud, CheckCircle, AlertCircle, Eye, X } from "lucide-react";
+import { useState, useEffect, useLayoutEffect, useRef } from "react";
+import { Image, Video, UploadCloud, CheckCircle, AlertCircle, Eye, X, Edit, Trash2, Globe, EyeOff } from "lucide-react";
 import { mediaService } from "../../services/mediaService";
 import type { MediaItem } from "../../services/mediaService";
+import { getVideoThumbnail } from "../../utils/videoThumbnail";
+import { 
+  getCachedMediaStats, 
+  setCachedMediaStats, 
+  incrementCachedCount, 
+  decrementCachedCount,
+  updateCachedCountOnPublishChange 
+} from "../../utils/mediaStatsCache";
 
 export default function MediaManagement() {
   const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
@@ -17,11 +25,36 @@ export default function MediaManagement() {
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [totalMedia, setTotalMedia] = useState(0);
-  const [totalPhotos, setTotalPhotos] = useState(0);
-  const [totalVideos, setTotalVideos] = useState(0);
+  // Initialize with a function to read from cache on mount
+  // This runs synchronously during component initialization
+  const [totalMedia, setTotalMedia] = useState(() => {
+    const cached = getCachedMediaStats();
+    const count = cached?.total_count ?? 0;
+    console.log('Initializing totalMedia from cache:', count, cached);
+    return count;
+  });
+  const [totalPhotos, setTotalPhotos] = useState(() => {
+    const cached = getCachedMediaStats();
+    const count = cached?.photo_count ?? 0;
+    console.log('Initializing totalPhotos from cache:', count, cached);
+    return count;
+  });
+  const [totalVideos, setTotalVideos] = useState(() => {
+    const cached = getCachedMediaStats();
+    const count = cached?.video_count ?? 0;
+    console.log('Initializing totalVideos from cache:', count, cached);
+    return count;
+  });
   const [selectedMedia, setSelectedMedia] = useState<MediaItem | null>(null);
   const [activeFilter, setActiveFilter] = useState<'photo' | 'video' | null>(null);
+  const [editingMedia, setEditingMedia] = useState<MediaItem | null>(null);
+  const [editTitleEn, setEditTitleEn] = useState("");
+  const [editTitleTe, setEditTitleTe] = useState("");
+  const [editIsPublished, setEditIsPublished] = useState(false);
+  const [deletingMedia, setDeletingMedia] = useState<MediaItem | null>(null);
+  const [processing, setProcessing] = useState<string | null>(null);
+  const [videoThumbnails, setVideoThumbnails] = useState<Map<string, string | null>>(new Map());
+  const thumbnailCacheRef = useRef<Map<string, string | null>>(new Map());
 
   // Reset to page 1 when filter changes
   useEffect(() => {
@@ -34,37 +67,156 @@ export default function MediaManagement() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPage, activeFilter]);
 
-  // Load totals once on mount
+  // Use useLayoutEffect to set from cache before first paint
+  useLayoutEffect(() => {
+    const cached = getCachedMediaStats();
+    if (cached) {
+      console.log('Setting counts from cache:', cached);
+      // Update state synchronously before paint
+      setTotalMedia(cached.total_count);
+      setTotalPhotos(cached.photo_count);
+      setTotalVideos(cached.video_count);
+    } else {
+      console.log('No cache found');
+    }
+  }, []);
+
+  // Load totals once on mount - refresh from API
   useEffect(() => {
+    // Always refresh from API to get latest data
     loadTotals();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Extract thumbnails for videos without thumbnails
+  useEffect(() => {
+    const extractThumbnails = async () => {
+      const videosWithoutThumbnails = mediaItems.filter(
+        item => item.type === 'video' && (!item.thumbnail || item.thumbnail.trim() === '')
+      );
+
+      for (const video of videosWithoutThumbnails) {
+        // Skip if we're already processing or have cached this thumbnail
+        if (thumbnailCacheRef.current.has(video.url)) {
+          continue;
+        }
+
+        // Mark as processing
+        thumbnailCacheRef.current.set(video.url, null);
+
+        try {
+          const thumbnail = await getVideoThumbnail(video.url, thumbnailCacheRef.current);
+          if (thumbnail) {
+            setVideoThumbnails(prev => {
+              const newMap = new Map(prev);
+              newMap.set(video.url, thumbnail);
+              return newMap;
+            });
+          }
+        } catch (error) {
+          console.error(`Failed to extract thumbnail for video ${video.url}:`, error);
+          thumbnailCacheRef.current.set(video.url, null);
+        }
+      }
+    };
+
+    if (mediaItems.length > 0) {
+      extractThumbnails();
+    }
+  }, [mediaItems]);
+
   const loadTotals = async () => {
     try {
-      const [allResponse, photosResponse, videosResponse] = await Promise.all([
-        mediaService.getMedia({ page: 1, per_page: 1 }),
-        mediaService.getMedia({ page: 1, per_page: 1, type: 'photo' }),
-        mediaService.getMedia({ page: 1, per_page: 1, type: 'video' }),
-      ]);
-      setTotalMedia(allResponse.total);
-      setTotalPhotos(photosResponse.total);
-      setTotalVideos(videosResponse.total);
+      // Use the new stats endpoint for better performance
+      const stats = await mediaService.getMediaStats();
+      
+      // Only update if stats are not all zeros (backend might return 0 if not initialized)
+      // If all zeros, try fallback method to get actual counts
+      if (stats.total_count === 0 && stats.photo_count === 0 && stats.video_count === 0) {
+        console.log('Stats endpoint returned all zeros, trying fallback method...');
+        // Try fallback method to get actual counts
+        try {
+          const [allResponse, photosResponse, videosResponse] = await Promise.all([
+            mediaService.getMedia({ page: 1, per_page: 1 }),
+            mediaService.getMedia({ page: 1, per_page: 1, type: 'photo' }),
+            mediaService.getMedia({ page: 1, per_page: 1, type: 'video' }),
+          ]);
+          const fallbackStats = {
+            total_count: allResponse.total,
+            photo_count: photosResponse.total,
+            video_count: videosResponse.total,
+          };
+          
+          // Only use fallback if it has non-zero values
+          if (fallbackStats.total_count > 0 || fallbackStats.photo_count > 0 || fallbackStats.video_count > 0) {
+            // Update state immediately
+            setTotalMedia(fallbackStats.total_count);
+            setTotalPhotos(fallbackStats.photo_count);
+            setTotalVideos(fallbackStats.video_count);
+            setCachedMediaStats(fallbackStats);
+            return;
+          }
+        } catch (fallbackErr) {
+          console.error("Failed to load totals with fallback method:", fallbackErr);
+        }
+      }
+      
+      // Use stats from endpoint (even if zeros, as that might be accurate)
+      console.log('Updating counts from API:', stats);
+      setTotalMedia(stats.total_count);
+      setTotalPhotos(stats.photo_count);
+      setTotalVideos(stats.video_count);
+      
+      // Update cache with fresh data
+      setCachedMediaStats(stats);
     } catch (err) {
       console.error("Failed to load totals:", err);
+      // Fallback to old method if stats endpoint fails
+      try {
+        const [allResponse, photosResponse, videosResponse] = await Promise.all([
+          mediaService.getMedia({ page: 1, per_page: 1 }),
+          mediaService.getMedia({ page: 1, per_page: 1, type: 'photo' }),
+          mediaService.getMedia({ page: 1, per_page: 1, type: 'video' }),
+        ]);
+        const fallbackStats = {
+          total_count: allResponse.total,
+          photo_count: photosResponse.total,
+          video_count: videosResponse.total,
+        };
+        // Update state immediately
+        setTotalMedia(fallbackStats.total_count);
+        setTotalPhotos(fallbackStats.photo_count);
+        setTotalVideos(fallbackStats.video_count);
+        
+        // Update cache with fallback data
+        setCachedMediaStats(fallbackStats);
+      } catch (fallbackErr) {
+        console.error("Failed to load totals with fallback method:", fallbackErr);
+      }
     }
   };
 
-  // Handle Escape key to close media modal
+  // Handle Escape key to close modals
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && selectedMedia) {
-        setSelectedMedia(null);
+      if (e.key === 'Escape') {
+        if (selectedMedia) {
+          setSelectedMedia(null);
+        } else if (editingMedia) {
+          setEditingMedia(null);
+          setEditTitleEn("");
+          setEditTitleTe("");
+          setEditIsPublished(false);
+          setError(null);
+        } else if (deletingMedia) {
+          setDeletingMedia(null);
+          setError(null);
+        }
       }
     };
     window.addEventListener('keydown', handleEscape);
     return () => window.removeEventListener('keydown', handleEscape);
-  }, [selectedMedia]);
+  }, [selectedMedia, editingMedia, deletingMedia]);
 
   const loadMedia = async () => {
     try {
@@ -133,6 +285,18 @@ export default function MediaManagement() {
       console.log('Upload result:', result);
       setSuccess(true);
       
+      // Update cache immediately if published (optimistic update)
+      if (isPublished) {
+        incrementCachedCount(mediaType);
+        // Update state immediately for instant UI feedback
+        if (mediaType === 'photo') {
+          setTotalPhotos(prev => prev + 1);
+        } else {
+          setTotalVideos(prev => prev + 1);
+        }
+        setTotalMedia(prev => prev + 1);
+      }
+      
       // Clear form
       setTimeout(() => {
         setSelectedFile(null);
@@ -142,7 +306,7 @@ export default function MediaManagement() {
         setShowUploadModal(false);
         setSuccess(false);
         loadMedia(); // Reload media list
-        loadTotals(); // Reload totals to update counters
+        loadTotals(); // Reload totals to sync with server
       }, 2000);
 
     } catch (err: any) {
@@ -156,6 +320,178 @@ export default function MediaManagement() {
 
   const handleFilterClick = (filter: 'photo' | 'video' | null) => {
     setActiveFilter(filter === activeFilter ? null : filter);
+  };
+
+  const handleEdit = (item: MediaItem) => {
+    setEditingMedia(item);
+    setEditTitleEn(item.title.en);
+    setEditTitleTe(item.title.te);
+    setEditIsPublished(item.isPublished);
+    setError(null);
+    setSuccess(false);
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingMedia) return;
+
+    if (!editTitleEn.trim()) {
+      setError("Title (English) is required");
+      return;
+    }
+
+    setProcessing(editingMedia.id);
+    setError(null);
+
+    try {
+      const wasPublished = editingMedia.isPublished;
+      await mediaService.updateMedia(editingMedia.id, {
+        title_en: editTitleEn,
+        title_te: editTitleTe || editTitleEn,
+        is_published: editIsPublished,
+      });
+
+      // Update cache if publish status changed
+      if (wasPublished !== editIsPublished) {
+        updateCachedCountOnPublishChange(editingMedia.type, wasPublished, editIsPublished);
+        // Update state immediately
+        if (editIsPublished && !wasPublished) {
+          // Being published
+          if (editingMedia.type === 'photo') {
+            setTotalPhotos(prev => prev + 1);
+          } else {
+            setTotalVideos(prev => prev + 1);
+          }
+          setTotalMedia(prev => prev + 1);
+        } else if (!editIsPublished && wasPublished) {
+          // Being unpublished
+          if (editingMedia.type === 'photo') {
+            setTotalPhotos(prev => Math.max(0, prev - 1));
+          } else {
+            setTotalVideos(prev => Math.max(0, prev - 1));
+          }
+          setTotalMedia(prev => Math.max(0, prev - 1));
+        }
+      }
+
+      setSuccess(true);
+      setTimeout(() => {
+        setEditingMedia(null);
+        setEditTitleEn("");
+        setEditTitleTe("");
+        setEditIsPublished(false);
+        setSuccess(false);
+        loadMedia();
+        loadTotals();
+      }, 1500);
+    } catch (err: any) {
+      console.error("Failed to update media:", err);
+      setError(err.response?.data?.message || err.message || "Failed to update media. Please try again.");
+    } finally {
+      setProcessing(null);
+    }
+  };
+
+  const handlePublish = async (item: MediaItem) => {
+    setProcessing(item.id);
+    setError(null);
+    setSuccess(false);
+
+    try {
+      await mediaService.publishMedia(item.id);
+      
+      // Update cache immediately (optimistic update)
+      updateCachedCountOnPublishChange(item.type, false, true);
+      // Update state immediately
+      if (item.type === 'photo') {
+        setTotalPhotos(prev => prev + 1);
+      } else {
+        setTotalVideos(prev => prev + 1);
+      }
+      setTotalMedia(prev => prev + 1);
+      
+      setSuccess(true);
+      setTimeout(() => {
+        setSuccess(false);
+        loadMedia();
+        loadTotals();
+      }, 1500);
+    } catch (err: any) {
+      console.error("Failed to publish media:", err);
+      setError(err.response?.data?.message || err.message || "Failed to publish media. Please try again.");
+    } finally {
+      setProcessing(null);
+    }
+  };
+
+  const handleUnpublish = async (item: MediaItem) => {
+    setProcessing(item.id);
+    setError(null);
+    setSuccess(false);
+
+    try {
+      await mediaService.unpublishMedia(item.id);
+      
+      // Update cache immediately (optimistic update)
+      updateCachedCountOnPublishChange(item.type, true, false);
+      // Update state immediately
+      if (item.type === 'photo') {
+        setTotalPhotos(prev => Math.max(0, prev - 1));
+      } else {
+        setTotalVideos(prev => Math.max(0, prev - 1));
+      }
+      setTotalMedia(prev => Math.max(0, prev - 1));
+      
+      setSuccess(true);
+      setTimeout(() => {
+        setSuccess(false);
+        loadMedia();
+        loadTotals();
+      }, 1500);
+    } catch (err: any) {
+      console.error("Failed to unpublish media:", err);
+      setError(err.response?.data?.message || err.message || "Failed to unpublish media. Please try again.");
+    } finally {
+      setProcessing(null);
+    }
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deletingMedia) return;
+
+    setProcessing(deletingMedia.id);
+    setError(null);
+    setSuccess(false);
+
+    try {
+      const wasPublished = deletingMedia.isPublished;
+      await mediaService.deleteMedia(deletingMedia.id);
+      
+      // Update cache immediately if it was published (optimistic update)
+      if (wasPublished) {
+        decrementCachedCount(deletingMedia.type);
+        // Update state immediately
+        if (deletingMedia.type === 'photo') {
+          setTotalPhotos(prev => Math.max(0, prev - 1));
+        } else {
+          setTotalVideos(prev => Math.max(0, prev - 1));
+        }
+        setTotalMedia(prev => Math.max(0, prev - 1));
+      }
+      
+      setSuccess(true);
+      setTimeout(() => {
+        setDeletingMedia(null);
+        setSuccess(false);
+        loadMedia();
+        loadTotals();
+      }, 1500);
+    } catch (err: any) {
+      console.error("Failed to delete media:", err);
+      setError(err.response?.data?.message || err.message || "Failed to delete media. Please try again.");
+    } finally {
+      setProcessing(null);
+    }
   };
 
   return (
@@ -269,11 +605,29 @@ export default function MediaManagement() {
                       onClick={() => setSelectedMedia(item)}
                     >
                       <Video className="w-12 h-12 text-white z-10" />
-                      <img 
-                        src={item.thumbnail} 
-                        alt={item.title.en}
-                        className="absolute inset-0 w-full h-full object-cover opacity-50"
-                      />
+                      {(item.thumbnail && item.thumbnail.trim() !== '') || videoThumbnails.get(item.url) ? (
+                        <img 
+                          src={videoThumbnails.get(item.url) || item.thumbnail} 
+                          alt={item.title.en}
+                          className="absolute inset-0 w-full h-full object-cover opacity-50"
+                          onError={() => {
+                            // If thumbnail fails to load, try extracting it
+                            if (!videoThumbnails.has(item.url)) {
+                              getVideoThumbnail(item.url, thumbnailCacheRef.current).then(thumbnail => {
+                                if (thumbnail) {
+                                  setVideoThumbnails(prev => {
+                                    const newMap = new Map(prev);
+                                    newMap.set(item.url, thumbnail);
+                                    return newMap;
+                                  });
+                                }
+                              });
+                            }
+                          }}
+                        />
+                      ) : (
+                        <div className="absolute inset-0 bg-gray-700" />
+                      )}
                     </div>
                   )}
                   <div className="p-3">
@@ -290,11 +644,57 @@ export default function MediaManagement() {
                           onClick={() => setSelectedMedia(item)}
                           className="p-1 hover:bg-gray-100 rounded"
                           title="View"
+                          disabled={processing === item.id}
                         >
                           <Eye className="w-4 h-4 text-gray-600" />
                         </button>
+                        <button 
+                          onClick={() => handleEdit(item)}
+                          className="p-1 hover:bg-blue-100 rounded"
+                          title="Edit"
+                          disabled={processing === item.id}
+                        >
+                          <Edit className="w-4 h-4 text-blue-600" />
+                        </button>
+                        {item.isPublished ? (
+                          <button 
+                            onClick={() => handleUnpublish(item)}
+                            className="p-1 hover:bg-yellow-100 rounded"
+                            title="Unpublish"
+                            disabled={processing === item.id}
+                          >
+                            <EyeOff className="w-4 h-4 text-yellow-600" />
+                          </button>
+                        ) : (
+                          <button 
+                            onClick={() => handlePublish(item)}
+                            className="p-1 hover:bg-green-100 rounded"
+                            title="Publish"
+                            disabled={processing === item.id}
+                          >
+                            <Globe className="w-4 h-4 text-green-600" />
+                          </button>
+                        )}
+                        <button 
+                          onClick={() => {
+                            setDeletingMedia(item);
+                            setError(null);
+                            setSuccess(false);
+                          }}
+                          className="p-1 hover:bg-red-100 rounded"
+                          title="Delete"
+                          disabled={processing === item.id}
+                        >
+                          <Trash2 className="w-4 h-4 text-red-600" />
+                        </button>
                       </div>
                     </div>
+                    {processing === item.id && (
+                      <div className="mt-2 text-xs text-gray-500 flex items-center gap-1">
+                        <div className="animate-spin w-3 h-3 border-2 border-orange-500 border-t-transparent rounded-full"></div>
+                        Processing...
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
@@ -455,6 +855,162 @@ export default function MediaManagement() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      {editingMedia && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-lg p-4 sm:p-6 my-auto">
+            <h2 className="text-lg sm:text-xl font-semibold mb-4">Edit Media</h2>
+
+            {/* Success Message */}
+            {success && (
+              <div className="mb-4 bg-green-50 border border-green-200 rounded-lg p-3 flex items-center gap-2">
+                <CheckCircle className="w-5 h-5 text-green-600" />
+                <span className="text-green-900">Media updated successfully!</span>
+              </div>
+            )}
+
+            {/* Error Message */}
+            {error && (
+              <div className="mb-4 bg-red-50 border border-red-200 rounded-lg p-3 flex items-center gap-2">
+                <AlertCircle className="w-5 h-5 text-red-600" />
+                <span className="text-red-900">{error}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleSaveEdit} className="space-y-4">
+              {/* Title English */}
+              <div>
+                <label className="text-sm font-medium">Title (English) *</label>
+                <input
+                  type="text"
+                  className="mt-1 w-full px-3 py-2 rounded-md border bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-300"
+                  placeholder="Enter title in English"
+                  value={editTitleEn}
+                  onChange={(e) => setEditTitleEn(e.target.value)}
+                  disabled={processing === editingMedia.id}
+                />
+              </div>
+
+              {/* Title Telugu */}
+              <div>
+                <label className="text-sm font-medium">Title (Telugu)</label>
+                <input
+                  type="text"
+                  className="mt-1 w-full px-3 py-2 rounded-md border bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-300"
+                  placeholder="తెలుగులో శీర్షికను నమోదు చేయండి"
+                  value={editTitleTe}
+                  onChange={(e) => setEditTitleTe(e.target.value)}
+                  disabled={processing === editingMedia.id}
+                />
+              </div>
+
+              {/* Published Status */}
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="editIsPublished"
+                  checked={editIsPublished}
+                  onChange={(e) => setEditIsPublished(e.target.checked)}
+                  className="rounded border-gray-300"
+                  disabled={processing === editingMedia.id}
+                />
+                <label htmlFor="editIsPublished" className="text-sm">Published</label>
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-2 pt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditingMedia(null);
+                    setEditTitleEn("");
+                    setEditTitleTe("");
+                    setEditIsPublished(false);
+                    setError(null);
+                  }}
+                  className="flex-1 px-4 py-2 rounded-md border hover:bg-gray-50"
+                  disabled={processing === editingMedia.id}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={processing === editingMedia.id || !editTitleEn.trim()}
+                  className="flex-1 px-4 py-2 rounded-md bg-orange-500 text-white hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {processing === editingMedia.id ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deletingMedia && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-4 sm:p-6">
+            <h2 className="text-lg sm:text-xl font-semibold mb-4 text-red-600">Delete Media</h2>
+
+            {/* Success Message */}
+            {success && (
+              <div className="mb-4 bg-green-50 border border-green-200 rounded-lg p-3 flex items-center gap-2">
+                <CheckCircle className="w-5 h-5 text-green-600" />
+                <span className="text-green-900">Media deleted successfully!</span>
+              </div>
+            )}
+
+            {/* Error Message */}
+            {error && (
+              <div className="mb-4 bg-red-50 border border-red-200 rounded-lg p-3 flex items-center gap-2">
+                <AlertCircle className="w-5 h-5 text-red-600" />
+                <span className="text-red-900">{error}</span>
+              </div>
+            )}
+
+            <div className="mb-6">
+              <p className="text-gray-700 mb-2">
+                Are you sure you want to permanently delete this media item?
+              </p>
+              <div className="bg-gray-50 rounded-lg p-3">
+                <div className="font-medium text-sm">{deletingMedia.title.en}</div>
+                {deletingMedia.title.te && (
+                  <div className="text-xs text-gray-500 mt-1">{deletingMedia.title.te}</div>
+                )}
+                <div className="text-xs text-gray-500 mt-2">
+                  Type: {deletingMedia.type === 'photo' ? 'Photo' : 'Video'}
+                </div>
+              </div>
+              <p className="text-sm text-red-600 mt-3 font-medium">
+                ⚠️ This action cannot be undone. The file will be permanently deleted.
+              </p>
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setDeletingMedia(null);
+                  setError(null);
+                }}
+                className="flex-1 px-4 py-2 rounded-md border hover:bg-gray-50"
+                disabled={processing === deletingMedia.id}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteConfirm}
+                disabled={processing === deletingMedia.id}
+                className="flex-1 px-4 py-2 rounded-md bg-red-500 text-white hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {processing === deletingMedia.id ? 'Deleting...' : 'Delete Permanently'}
+              </button>
+            </div>
           </div>
         </div>
       )}

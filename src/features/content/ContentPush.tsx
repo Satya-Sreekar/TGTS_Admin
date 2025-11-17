@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Megaphone, Bell, UploadCloud, CheckCircle, AlertCircle, X } from "lucide-react";
 import clsx from "clsx";
 import { adminService } from "../../services/adminService";
 import { mediaService } from "../../services/mediaService";
+import { translationService } from "../../services/translationService";
 
 const audienceTypes = ["All Members", "Cadre Only", "Public"] as const;
 const regions = ["Hyderabad", "Warangal", "Nizamabad", "Karimnagar", "Khammam", "Nalgonda"] as const;
@@ -22,7 +23,35 @@ export default function ContentPush() {
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Track if Telugu fields were manually edited
+  const titleTeManualEdit = useRef(false);
+  const descTeManualEdit = useRef(false);
+
   const estimatedReach = 15428; // placeholder to match screenshot
+
+  // Auto-translate Title English to Telugu
+  useEffect(() => {
+    if (titleEn && !titleTeManualEdit.current) {
+      const debouncedTranslate = translationService.createDebouncedTranslator(800);
+      debouncedTranslate(titleEn, (translated) => {
+        if (!titleTeManualEdit.current) {
+          setTitleTe(translated);
+        }
+      });
+    }
+  }, [titleEn]);
+
+  // Auto-translate Description English to Telugu
+  useEffect(() => {
+    if (descEn && !descTeManualEdit.current) {
+      const debouncedTranslate = translationService.createDebouncedTranslator(800);
+      debouncedTranslate(descEn, (translated) => {
+        if (!descTeManualEdit.current) {
+          setDescTe(translated);
+        }
+      });
+    }
+  }, [descEn]);
 
   // Create and cleanup image preview URL
   useEffect(() => {
@@ -201,7 +230,7 @@ export default function ContentPush() {
             <div>
               <label className="text-sm font-medium">Title (English) *</label>
               <input
-                className="mt-1 w-full px-3 py-2 rounded-md border focus:outline-none focus:ring-2 focus:ring-orange-300"
+                className="mt-1 w-full px-3 py-2 rounded-md border bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-300"
                 placeholder="Enter title in English"
                 value={titleEn}
                 onChange={(e) => setTitleEn(e.target.value)}
@@ -212,10 +241,13 @@ export default function ContentPush() {
             <div>
               <label className="text-sm font-medium">Title (Telugu) *</label>
               <input
-                className="mt-1 w-full px-3 py-2 rounded-md border focus:outline-none focus:ring-2 focus:ring-orange-300"
-                placeholder="తెలుగులో శీర్షికను నమోదు చేయండి"
+                className="mt-1 w-full px-3 py-2 rounded-md border bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-300"
+                placeholder="తెలుగులో శీర్షికను నమోదు చేయండి (Auto-translated)"
                 value={titleTe}
-                onChange={(e) => setTitleTe(e.target.value)}
+                onChange={(e) => {
+                  setTitleTe(e.target.value);
+                  titleTeManualEdit.current = true;
+                }}
               />
             </div>
 
@@ -223,7 +255,7 @@ export default function ContentPush() {
             <div>
               <label className="text-sm font-medium">Description (English)</label>
               <textarea
-                className="mt-1 w-full px-3 py-2 rounded-md border focus:outline-none focus:ring-2 focus:ring-orange-300"
+                className="mt-1 w-full px-3 py-2 rounded-md border bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-300"
                 rows={3}
                 placeholder="Enter description in English"
                 value={descEn}
@@ -235,11 +267,14 @@ export default function ContentPush() {
             <div>
               <label className="text-sm font-medium">Description (Telugu)</label>
               <textarea
-                className="mt-1 w-full px-3 py-2 rounded-md border focus:outline-none focus:ring-2 focus:ring-orange-300"
+                className="mt-1 w-full px-3 py-2 rounded-md border bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-300"
                 rows={3}
-                placeholder="తెలుగులో వివరణను నమోదు చేయండి"
+                placeholder="తెలుగులో వివరణను నమోదు చేయండి (Auto-translated)"
                 value={descTe}
-                onChange={(e) => setDescTe(e.target.value)}
+                onChange={(e) => {
+                  setDescTe(e.target.value);
+                  descTeManualEdit.current = true;
+                }}
               />
             </div>
 

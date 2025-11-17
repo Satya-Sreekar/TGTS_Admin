@@ -126,8 +126,8 @@ export default function UserManagement() {
           contact: user.phone,
           region: user.region || 'Unknown',
           role: user.role.toUpperCase() as "CADRE" | "PUBLIC" | "ADMIN",
-          date: new Date(user.enrollment_date).toLocaleDateString('en-GB'),
-          status: user.is_active ? 'active' as const : 'inactive' as const,
+          date: user.enrollment_date ? new Date(user.enrollment_date).toLocaleDateString('en-GB') : 'N/A',
+          status: (user.is_active ?? user.isActive) ? 'active' as const : 'inactive' as const,
         }));
         
         setUsers(mappedUsers);

@@ -2,10 +2,28 @@ import { Outlet } from "react-router-dom";
 import { useState, useEffect } from "react";
 import Sidebar from "./Sidebar";
 import Header from "./Header";
+import { mediaService } from "../services/mediaService";
+import { setCachedMediaStats } from "../utils/mediaStatsCache";
 
 export default function AppLayout() {
   console.log('AppLayout rendering');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  // Preload media stats when app layout loads (so it's ready when user navigates to media tab)
+  useEffect(() => {
+    const preloadMediaStats = async () => {
+      try {
+        const stats = await mediaService.getMediaStats();
+        setCachedMediaStats(stats);
+        console.log('Media stats preloaded:', stats);
+      } catch (err) {
+        console.error('Failed to preload media stats:', err);
+        // Silently fail - will be loaded when user visits media tab
+      }
+    };
+    
+    preloadMediaStats();
+  }, []);
 
   // Close mobile menu when clicking outside
   useEffect(() => {

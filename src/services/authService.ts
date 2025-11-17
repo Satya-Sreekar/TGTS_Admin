@@ -1,74 +1,62 @@
 import api from './api';
 
-export type LoginRequest = {
-  phone: string;
-};
-
-export type VerifyOTPRequest = {
-  phone: string;
-  otp: string;
+export type AdminLoginRequest = {
+  username: string;
+  password: string;
 };
 
 export type User = {
-  id: number;
+  id: string;
   phone: string;
   name: string;
-  role: 'public' | 'cadre' | 'admin';
+  role: string;
   region?: string;
-  enrollment_date: string;
-  is_active: boolean;
+  isActive: boolean;
+  is_active?: boolean; // API may return snake_case
+  enrollment_date?: string;
 };
 
-export type AuthResponse = {
+export type AdminLoginResponse = {
   access_token: string;
   user: User;
   message: string;
 };
 
 export const authService = {
-  // Send OTP to phone number
-  async sendOTP(data: LoginRequest) {
-    const response = await api.post('/auth/login', data);
+  // Admin login
+  async adminLogin(credentials: AdminLoginRequest): Promise<AdminLoginResponse> {
+    const response = await api.post('/auth/admin-login', credentials);
     return response.data;
   },
 
-  // Verify OTP and get access token
-  async verifyOTP(data: VerifyOTPRequest): Promise<AuthResponse> {
-    const response = await api.post('/auth/verify-otp', data);
-    if (response.data.access_token) {
-      localStorage.setItem('token', response.data.access_token);
-      localStorage.setItem('user', JSON.stringify(response.data.user));
-    }
-    return response.data;
-  },
-
-  // Get current user profile
-  async getProfile(): Promise<User> {
-    const response = await api.get('/auth/profile');
-    return response.data;
-  },
-
-  // Update user profile
-  async updateProfile(data: Partial<User>): Promise<User> {
-    const response = await api.put('/auth/profile', data);
-    return response.data;
-  },
-
-  // Logout
+  // Logout (clear token)
   logout() {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-  },
-
-  // Get current user from localStorage
-  getCurrentUser(): User | null {
-    const userStr = localStorage.getItem('user');
-    return userStr ? JSON.parse(userStr) : null;
+    window.location.href = '/login';
   },
 
   // Check if user is authenticated
   isAuthenticated(): boolean {
     return !!localStorage.getItem('token');
   },
-};
 
+  // Get stored user info
+  getStoredUser() {
+    const userStr = localStorage.getItem('user');
+    if (userStr) {
+      try {
+        return JSON.parse(userStr);
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  },
+
+  // Store auth data
+  storeAuth(token: string, user: any) {
+    localStorage.setItem('token', token);
+    localStorage.setItem('user', JSON.stringify(user));
+  },
+};

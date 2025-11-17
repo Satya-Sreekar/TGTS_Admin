@@ -1,5 +1,6 @@
 import { useLocation } from "react-router-dom";
-import { Menu } from "lucide-react";
+import { Menu, LogOut, User } from "lucide-react";
+import { authService } from "../services/authService";
 
 interface HeaderProps {
   onMenuClick: () => void;
@@ -8,6 +9,7 @@ interface HeaderProps {
 export default function Header({ onMenuClick }: HeaderProps) {
   const { pathname } = useLocation();
   const isDashboard = pathname === "/";
+  const user = authService.getStoredUser();
   
   // Get page title from pathname
   const getPageTitle = () => {
@@ -19,6 +21,12 @@ export default function Header({ onMenuClick }: HeaderProps) {
     if (pathname === "/analytics") return "Analytics";
     if (pathname === "/uploads") return "Upload Documents";
     return "Admin Panel";
+  };
+
+  const handleLogout = () => {
+    if (confirm("Are you sure you want to logout?")) {
+      authService.logout();
+    }
   };
 
   return (
@@ -43,6 +51,24 @@ export default function Header({ onMenuClick }: HeaderProps) {
               </div>
             )}
           </div>
+        </div>
+
+        {/* User Info and Logout */}
+        <div className="flex items-center gap-3">
+          {user && (
+            <div className="hidden md:flex items-center gap-2 text-sm text-gray-600">
+              <User className="w-4 h-4" />
+              <span>{user.name || "Admin"}</span>
+            </div>
+          )}
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+            title="Logout"
+          >
+            <LogOut className="w-4 h-4" />
+            <span className="hidden md:inline">Logout</span>
+          </button>
         </div>
       </div>
     </header>
