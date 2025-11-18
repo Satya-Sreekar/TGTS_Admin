@@ -62,18 +62,10 @@ api.interceptors.request.use(
       }
     }
     
-    // Handle production server's double /api/api pattern
-    // Health endpoint uses single /api, all other endpoints use double /api/api
-    if (USE_PRODUCTION && config.url) {
-      // Skip if it's the health endpoint (uses single /api)
-      if (!config.url.includes('/health')) {
-        // Base URL is already /api, so we need to add another /api prefix for production
-        // Example: /media/123 -> /api/media/123 (becomes /api/api/media/123 with baseURL)
-        if (config.url.startsWith('/')) {
-          config.url = `/api${config.url}`;
-        }
-      }
-    }
+    // Base URL already includes /api, so no need to add another /api prefix
+    // The services call endpoints like /events/, /media/, etc.
+    // With baseURL = 'https://apitgts.codeology.solutions/api'
+    // Final URL will be: https://apitgts.codeology.solutions/api/events/
     
     return config;
   },
