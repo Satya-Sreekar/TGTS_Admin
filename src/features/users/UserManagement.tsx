@@ -25,7 +25,6 @@ type UserRow = {
 
 const statusOptions = ["All Status", "approved", "pending", "rejected"] as const;
 // Region options will be dynamically populated from members data
-const regionOptions = ["All Regions"] as const;
 
 function RolePill({ role }: { role: UserRow["role"] }) {
   const classes = {
@@ -54,7 +53,7 @@ function StatusPill({ status }: { status: UserRow["status"] }) {
 export default function UserManagement() {
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<(typeof statusOptions)[number]>("All Status");
-  const [region, setRegion] = useState<(typeof regionOptions)[number]>("All Regions");
+  const [region, setRegion] = useState<string>("All Regions");
   const [page, setPage] = useState(1);
   const [users, setUsers] = useState<UserRow[]>([]);
   const [totalCount, setTotalCount] = useState(0);

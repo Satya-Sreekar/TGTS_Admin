@@ -37,7 +37,7 @@ api.interceptors.request.use(
   (config) => {
     // Ensure headers object exists
     if (!config.headers) {
-      config.headers = {};
+      config.headers = {} as any;
     }
     
     const token = localStorage.getItem('token');
