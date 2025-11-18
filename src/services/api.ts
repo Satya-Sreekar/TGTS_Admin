@@ -2,7 +2,8 @@ import axios from 'axios';
 
 // API Configuration
 // Set to true to use production API, false for local development
-const USE_PRODUCTION = import.meta.env.VITE_USE_PRODUCTION === 'true';
+// Defaults to production mode
+const USE_PRODUCTION = import.meta.env.VITE_USE_PRODUCTION !== 'false';
 
 // Production API URL
 const PRODUCTION_URL = 'https://apitgts.codeology.solutions/api';
@@ -34,9 +35,35 @@ const api = axios.create({
 // Request interceptor to add auth token and handle production URL pattern
 api.interceptors.request.use(
   (config) => {
+    // Ensure headers object exists
+    if (!config.headers) {
+      config.headers = {};
+    }
+    
     const token = localStorage.getItem('token');
     if (token) {
+      // Always set Authorization header, even for FormData requests
       config.headers.Authorization = `Bearer ${token}`;
+    } else {
+      // Log warning if token is missing for protected endpoints
+      const protectedEndpoints = ['/documents/', '/media/', '/users/', '/events/'];
+      const isProtected = protectedEndpoints.some(endpoint => config.url?.includes(endpoint));
+      if (isProtected) {
+        console.warn('No auth token found for protected endpoint:', config.url);
+      }
+    }
+    
+    // For FormData requests, don't set Content-Type manually
+    // Axios will automatically set it with the correct boundary
+    if (config.data instanceof FormData) {
+      // Remove Content-Type if it was set manually, let axios handle it
+      if (config.headers['Content-Type'] === 'multipart/form-data') {
+        delete config.headers['Content-Type'];
+      }
+      // Ensure Authorization header is preserved for FormData
+      if (token && !config.headers.Authorization) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
     }
     
     // Handle production server's double /api/api pattern

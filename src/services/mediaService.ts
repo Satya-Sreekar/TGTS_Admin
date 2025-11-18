@@ -71,10 +71,18 @@ export const mediaService = {
     formData.append('file', file);
     formData.append('type', type);
     
+    // Get token from localStorage to ensure it's included
+    const token = localStorage.getItem('token');
+    const headers: Record<string, string> = {};
+    
+    // Add Authorization header if token exists
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    
+    // Don't set Content-Type manually - let axios set it with boundary for FormData
     const response = await api.post('/media/upload', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
+      headers,
     });
     return response.data;
   },

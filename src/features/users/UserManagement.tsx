@@ -8,8 +8,8 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import clsx from "clsx";
-import { userService } from "../../services/userService";
-import type { User } from "../../services/authService";
+import { memberService } from "../../services/memberService";
+import type { Member } from "../../services/memberService";
 
 type UserRow = {
   name: string;
@@ -21,56 +21,11 @@ type UserRow = {
   status: "active" | "inactive";
 };
 
-const allUsers: UserRow[] = [
-  {
-    name: "Rajesh Kumar",
-    email: "rajesh@example.com",
-    contact: "+91 9876543210",
-    region: "Hyderabad",
-    role: "CADRE",
-    date: "15/9/2025",
-    status: "active",
-  },
-  {
-    name: "Priya Sharma",
-    email: "priya@example.com",
-    contact: "+91 9876543211",
-    region: "Warangal",
-    role: "CADRE",
-    date: "20/9/2025",
-    status: "active",
-  },
-  {
-    name: "Suresh Reddy",
-    email: "suresh@example.com",
-    contact: "+91 9876543212",
-    region: "Nizamabad",
-    role: "PUBLIC",
-    date: "1/10/2025",
-    status: "active",
-  },
-  {
-    name: "Lakshmi Devi",
-    email: "lakshmi@example.com",
-    contact: "+91 9876543213",
-    region: "Karimnagar",
-    role: "CADRE",
-    date: "5/10/2025",
-    status: "active",
-  },
-  {
-    name: "Venkat Rao",
-    email: "venkat@example.com",
-    contact: "+91 9876543214",
-    region: "Hyderabad",
-    role: "ADMIN",
-    date: "10/8/2025",
-    status: "active",
-  },
-];
+// Removed mock data - now fetching from members API
 
-const roleOptions = ["All Roles", "CADRE", "ADMIN", "PUBLIC"] as const;
-const regionOptions = ["All Regions", "Hyderabad", "Warangal", "Nizamabad", "Karimnagar"] as const;
+const statusOptions = ["All Status", "approved", "pending", "rejected"] as const;
+// Region options will be dynamically populated from members data
+const regionOptions = ["All Regions"] as const;
 
 function RolePill({ role }: { role: UserRow["role"] }) {
   const classes = {
@@ -98,51 +53,78 @@ function StatusPill({ status }: { status: UserRow["status"] }) {
 
 export default function UserManagement() {
   const [query, setQuery] = useState("");
-  const [role, setRole] = useState<(typeof roleOptions)[number]>("All Roles");
+  const [status, setStatus] = useState<(typeof statusOptions)[number]>("All Status");
   const [region, setRegion] = useState<(typeof regionOptions)[number]>("All Regions");
   const [page, setPage] = useState(1);
-  const [users, setUsers] = useState<UserRow[]>(allUsers);
-  const [totalCount, setTotalCount] = useState(15428);
+  const [users, setUsers] = useState<UserRow[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [availableRegions, setAvailableRegions] = useState<string[]>(["All Regions"]);
 
   const pageSize = 5;
 
-  // Fetch users from API
+  // Fetch members from API
   useEffect(() => {
-    const fetchUsers = async () => {
+    const fetchMembers = async () => {
       setLoading(true);
       try {
-        const response = await userService.getUsers({
+        const response = await memberService.getMembers({
           page,
           per_page: pageSize,
-          role: role !== "All Roles" ? role : undefined,
+          status: status !== "All Status" ? status as 'pending' | 'approved' | 'rejected' : undefined,
           search: query || undefined,
         });
         
-        // Map API users to UserRow format
-        const mappedUsers: UserRow[] = response.data.map((user: User) => ({
-          name: user.name || 'Unknown',
-          email: user.phone,
-          contact: user.phone,
-          region: user.region || 'Unknown',
-          role: user.role.toUpperCase() as "CADRE" | "PUBLIC" | "ADMIN",
-          date: user.enrollment_date ? new Date(user.enrollment_date).toLocaleDateString('en-GB') : 'N/A',
-          status: (user.is_active ?? user.isActive) ? 'active' as const : 'inactive' as const,
-        }));
+        // Map API members to UserRow format
+        const mappedUsers: UserRow[] = response.data.map((member: Member) => {
+          // Format date from createdAt
+          const dateStr = member.createdAt 
+            ? new Date(member.createdAt).toLocaleDateString('en-GB') 
+            : 'N/A';
+          
+          // Map member isActive directly from database
+          // The approval status (pending/approved/rejected) is separate from active/inactive
+          const isActive = member.isActive ?? true; // Default to true if not set
+          
+          // Determine role based on member status and volunteer interest
+          // Members are typically PUBLIC, but we can use status as role indicator
+          let memberRole: "CADRE" | "PUBLIC" | "ADMIN" = "PUBLIC";
+          if (member.status === 'approved' && member.volunteerInterest) {
+            memberRole = "CADRE";
+          }
+          
+          return {
+            name: member.fullName || 'Unknown',
+            email: member.phone,
+            contact: member.phone,
+            region: member.district || member.mandal || member.village || 'Unknown',
+            role: memberRole,
+            date: dateStr,
+            status: isActive ? 'active' as const : 'inactive' as const,
+          };
+        });
         
         setUsers(mappedUsers);
         setTotalCount(response.total);
+        
+        // Extract unique regions from members for filter dropdown
+        const regions = new Set<string>(["All Regions"]);
+        response.data.forEach((member: Member) => {
+          if (member.district) regions.add(member.district);
+        });
+        setAvailableRegions(Array.from(regions));
       } catch (error) {
-        console.error('Failed to fetch users:', error);
-        // Fall back to sample data
-        setUsers(allUsers);
+        console.error('Failed to fetch members:', error);
+        // Fall back to empty array instead of mock data
+        setUsers([]);
+        setTotalCount(0);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchUsers();
-  }, [page, role, query]);
+    fetchMembers();
+  }, [page, status, query]);
 
   const filtered = useMemo(() => {
     return users.filter((u) => {
@@ -160,8 +142,8 @@ export default function UserManagement() {
       {/* Header + actions */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-xl sm:text-2xl font-semibold">User Management</h1>
-          <p className="text-xs sm:text-sm text-gray-500">Manage members and their access levels</p>
+          <h1 className="text-xl sm:text-2xl font-semibold">Member Management</h1>
+          <p className="text-xs sm:text-sm text-gray-500">Manage members registered through the app</p>
         </div>
         <div className="flex items-center gap-2">
           <button className="flex items-center gap-2 px-3 py-2 text-xs sm:text-sm rounded-md border hover:bg-gray-50">
@@ -190,19 +172,19 @@ export default function UserManagement() {
           />
         </div>
 
-        {/* Role dropdown */}
+        {/* Status dropdown */}
         <div className="relative sm:w-auto w-full">
           <select
             className="appearance-none pl-3 pr-8 py-2 rounded-md border text-sm focus:outline-none focus:ring-2 focus:ring-orange-300 bg-white text-gray-900 w-full sm:w-auto"
-            value={role}
+            value={status}
             onChange={(e) => {
-              setRole(e.target.value as (typeof roleOptions)[number]);
+              setStatus(e.target.value as (typeof statusOptions)[number]);
               setPage(1);
             }}
           >
-            {roleOptions.map((r) => (
-              <option key={r} value={r}>
-                {r}
+            {statusOptions.map((s) => (
+              <option key={s} value={s}>
+                {s.charAt(0).toUpperCase() + s.slice(1)}
               </option>
             ))}
           </select>
@@ -215,11 +197,11 @@ export default function UserManagement() {
             className="appearance-none pl-3 pr-8 py-2 rounded-md border text-sm focus:outline-none focus:ring-2 focus:ring-orange-300 bg-white text-gray-900 w-full sm:w-auto"
             value={region}
             onChange={(e) => {
-              setRegion(e.target.value as (typeof regionOptions)[number]);
+              setRegion(e.target.value);
               setPage(1);
             }}
           >
-            {regionOptions.map((r) => (
+            {availableRegions.map((r) => (
               <option key={r} value={r}>
                 {r}
               </option>
@@ -233,7 +215,7 @@ export default function UserManagement() {
       <div className="bg-white rounded-lg shadow-card overflow-hidden">
         {loading ? (
           <div className="flex items-center justify-center py-12">
-            <div className="text-gray-500">Loading users...</div>
+            <div className="text-gray-500">Loading members...</div>
           </div>
         ) : (
           <>
@@ -277,7 +259,7 @@ export default function UserManagement() {
                   {paged.length === 0 && (
                     <tr>
                       <td className="px-4 py-6 text-center text-gray-500" colSpan={7}>
-                        No users match your filters.
+                        {loading ? 'Loading members...' : 'No members match your filters.'}
                       </td>
                     </tr>
                   )}
@@ -317,7 +299,7 @@ export default function UserManagement() {
               ))}
               {paged.length === 0 && (
                 <div className="px-4 py-6 text-center text-gray-500">
-                  No users match your filters.
+                  {loading ? 'Loading members...' : 'No members match your filters.'}
                 </div>
               )}
             </div>

@@ -11,9 +11,12 @@ export type User = {
   name: string;
   role: string;
   region?: string;
-  isActive: boolean;
+  isActive?: boolean;
   is_active?: boolean; // API may return snake_case
   enrollment_date?: string;
+  enrollmentDate?: string; // API may return camelCase
+  createdAt?: string;
+  updatedAt?: string;
 };
 
 export type AdminLoginResponse = {
