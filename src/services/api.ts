@@ -1,18 +1,14 @@
 import axios from 'axios';
 
 // API Configuration
-// Set to true to use production API, false for local development
-// Defaults to production mode
-const USE_PRODUCTION = import.meta.env.VITE_USE_PRODUCTION !== 'false';
+// Production mode - always use production API
+const USE_PRODUCTION = true;
 
 // Production API URL
 const PRODUCTION_URL = 'https://apitgts.codeology.solutions/api';
 
-// Local development URLs
-const LOCAL_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-
-// Get API URL based on configuration
-const API_URL = USE_PRODUCTION ? PRODUCTION_URL : LOCAL_URL;
+// Get API URL - always use production
+const API_URL = PRODUCTION_URL;
 
 console.log('API Configuration:', {
   mode: USE_PRODUCTION ? 'PRODUCTION' : 'DEVELOPMENT',
