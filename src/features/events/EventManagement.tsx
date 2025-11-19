@@ -5,7 +5,7 @@ import { CalendarDays, Clock, MapPin, Pencil, Trash2, Plus, List, Calendar as Ca
 import { eventService } from "../../services/eventService";
 import type { Event, CreateEventRequest, AttendeesResponse } from "../../services/eventService";
 import { translationService } from "../../services/translationService";
-import { parseToIST, formatISTForDisplay, getISTNow, formatISTISO } from "../../utils/timezone";
+import { parseToIST, formatISTForDisplay, getISTNow, formatISTISO, formatISTDateString } from "../../utils/timezone";
 
 // Display format for events (simplified from API format)
 type EventItem = {
@@ -270,7 +270,7 @@ export default function EventManagement() {
   const eventsByDate = useMemo(() => {
     const map = new Map<string, EventItem[]>();
     events.forEach((event) => {
-      const dateKey = event.dateObj.toISOString().split("T")[0];
+      const dateKey = formatISTDateString(event.dateObj);
       if (!map.has(dateKey)) {
         map.set(dateKey, []);
       }
@@ -281,7 +281,7 @@ export default function EventManagement() {
 
   // Get events for selected date
   const selectedDateEvents = useMemo(() => {
-    const dateKey = selectedDate.toISOString().split("T")[0];
+    const dateKey = formatISTDateString(selectedDate);
     return eventsByDate.get(dateKey) || [];
   }, [selectedDate, eventsByDate]);
 
@@ -296,7 +296,7 @@ export default function EventManagement() {
 
   // Custom tile content to mark dates with events
   const tileContent = ({ date }: { date: Date }) => {
-    const dateKey = date.toISOString().split("T")[0];
+    const dateKey = formatISTDateString(date);
     const hasEvents = eventsByDate.has(dateKey);
     if (hasEvents) {
       const eventCount = eventsByDate.get(dateKey)!.length;
@@ -316,7 +316,7 @@ export default function EventManagement() {
 
   // Custom tile className to highlight dates with events
   const tileClassName = ({ date }: { date: Date }) => {
-    const dateKey = date.toISOString().split("T")[0];
+    const dateKey = formatISTDateString(date);
     if (eventsByDate.has(dateKey)) {
       return "has-events";
     }

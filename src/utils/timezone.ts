@@ -126,3 +126,25 @@ export function istToUTC(istDate: Date): Date {
   return new Date(utcTime);
 }
 
+/**
+ * Format date as YYYY-MM-DD in IST timezone (for date comparisons)
+ * This ensures dates are compared correctly without timezone shifts
+ * @param date - Date object (will be treated as IST)
+ * @returns Date string in YYYY-MM-DD format
+ */
+export function formatISTDateString(date: Date): string {
+  if (!date) {
+    return '';
+  }
+
+  // Format date in IST timezone to avoid timezone shifts
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Kolkata',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  });
+  
+  return formatter.format(date);
+}
+
