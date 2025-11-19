@@ -7,7 +7,7 @@ export type Document = {
   description_en?: string;
   description_te?: string;
   category: string;
-  file_url: string;
+  file_url: string | null;
   file_type: string;
   file_size: number;
   access_level: string[];

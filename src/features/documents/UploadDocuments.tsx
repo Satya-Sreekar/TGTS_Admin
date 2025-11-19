@@ -199,15 +199,39 @@ export default function UploadDocuments() {
     }
   };
 
-  const handleDownload = (fileUrl: string, title: string) => {
+  const isValidFileUrl = (fileUrl: string | null | undefined): boolean => {
+    if (!fileUrl || fileUrl === 'None' || fileUrl === 'null' || fileUrl.trim() === '') {
+      return false;
+    }
+    try {
+      const url = new URL(fileUrl);
+      return url.protocol === 'http:' || url.protocol === 'https:';
+    } catch {
+      return false;
+    }
+  };
+
+  const handleDownload = (fileUrl: string | null | undefined, title: string) => {
+    // Validate file URL
+    if (!isValidFileUrl(fileUrl)) {
+      setError(`Unable to download "${title}": File URL is missing or invalid.`);
+      return;
+    }
+
     // Create a temporary anchor element to trigger download
-    const link = document.createElement('a');
-    link.href = fileUrl;
-    link.download = title;
-    link.target = '_blank';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    try {
+      const link = document.createElement('a');
+      link.href = fileUrl!;
+      link.download = title;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (err) {
+      console.error('Download error:', err);
+      setError(`Failed to download "${title}". Please try again.`);
+    }
   };
 
   const formatDate = (dateString: string) => {
@@ -339,10 +363,19 @@ export default function UploadDocuments() {
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => handleDownload(doc.file_url, doc.title_en)}
-                        className="p-2 rounded-md hover:bg-gray-100"
-                        title="Download"
+                        disabled={!isValidFileUrl(doc.file_url)}
+                        className={clsx(
+                          "p-2 rounded-md transition-colors",
+                          isValidFileUrl(doc.file_url)
+                            ? "hover:bg-gray-100 cursor-pointer"
+                            : "opacity-50 cursor-not-allowed"
+                        )}
+                        title={isValidFileUrl(doc.file_url) ? "Download" : "File URL is missing or invalid"}
                       >
-                        <Download className="w-4 h-4 text-gray-700" />
+                        <Download className={clsx(
+                          "w-4 h-4",
+                          isValidFileUrl(doc.file_url) ? "text-gray-700" : "text-gray-400"
+                        )} />
                       </button>
                       <button
                         onClick={() => handleDelete(doc.id.toString())}
