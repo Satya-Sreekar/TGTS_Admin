@@ -191,7 +191,8 @@ export default function UploadDocuments() {
     }
 
     try {
-      await documentService.deleteDocument(parseInt(documentId));
+      // Document IDs are UUID strings, not integers
+      await documentService.deleteDocument(documentId);
       loadDocuments();
     } catch (err: any) {
       console.error("Failed to delete document:", err);

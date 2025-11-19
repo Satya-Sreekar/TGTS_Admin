@@ -6,7 +6,6 @@ const USE_PRODUCTION = false;
 
 // Production API URL
 const PRODUCTION_URL = 'https://apitgts.codeology.solutions/api';
-const LOCAL_URL = 'http://localhost:5000/api';
 // Get API URL - always use production
 const API_URL = PRODUCTION_URL;
 

@@ -1,7 +1,7 @@
 import api from './api';
 
 export type Document = {
-  id: number;
+  id: string | number; // Document IDs are UUID strings
   title_en: string;
   title_te?: string;
   description_en?: string;
@@ -44,7 +44,7 @@ export const documentService = {
   },
 
   // Get document by ID
-  async getDocumentById(documentId: number): Promise<Document> {
+  async getDocumentById(documentId: string | number): Promise<Document> {
     const response = await api.get(`/documents/${documentId}`);
     return response.data;
   },
@@ -56,13 +56,13 @@ export const documentService = {
   },
 
   // Update document (admin only)
-  async updateDocument(documentId: number, data: Partial<CreateDocumentRequest>): Promise<Document> {
+  async updateDocument(documentId: string | number, data: Partial<CreateDocumentRequest>): Promise<Document> {
     const response = await api.put(`/documents/${documentId}`, data);
     return response.data;
   },
 
   // Delete document (admin only)
-  async deleteDocument(documentId: number) {
+  async deleteDocument(documentId: string | number) {
     const response = await api.delete(`/documents/${documentId}`);
     return response.data;
   },
