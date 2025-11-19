@@ -20,11 +20,11 @@ console.log('API Configuration:', {
 });
 
 // Create axios instance with base configuration
+// Note: Don't set Content-Type as default - it will be set per request
+// For JSON requests, we'll set it in the interceptor
+// For FormData requests, axios will set it automatically with boundary
 const api = axios.create({
   baseURL: API_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
   timeout: 10000, // 10 second timeout
 });
 
@@ -52,13 +52,24 @@ api.interceptors.request.use(
     // For FormData requests, don't set Content-Type manually
     // Axios will automatically set it with the correct boundary
     if (config.data instanceof FormData) {
-      // Remove Content-Type if it was set manually, let axios handle it
-      if (config.headers['Content-Type'] === 'multipart/form-data') {
+      // Explicitly remove Content-Type header to let axios set it with boundary
+      // This is critical - if Content-Type is set to application/json, Flask won't parse multipart/form-data
+      if (config.headers['Content-Type']) {
         delete config.headers['Content-Type'];
+      }
+      // Also remove it from common headers if present
+      if (config.headers.common && config.headers.common['Content-Type']) {
+        delete config.headers.common['Content-Type'];
       }
       // Ensure Authorization header is preserved for FormData
       if (token && !config.headers.Authorization) {
         config.headers.Authorization = `Bearer ${token}`;
+      }
+    } else {
+      // For non-FormData requests, set Content-Type to application/json
+      // Only if it's not already set and the data is not FormData
+      if (!config.headers['Content-Type'] && config.data !== null && config.data !== undefined) {
+        config.headers['Content-Type'] = 'application/json';
       }
     }
     
