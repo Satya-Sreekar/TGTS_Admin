@@ -1158,7 +1158,7 @@ export default function MediaManagement() {
                     setEditTitleEn("");
                     setEditTitleTe("");
                     setEditIsPublished(false);
-                    setEditAccessLevels(["public"]);
+                    setEditSelectedAccessLevel("public");
                     setEditGeographicAccess({
                       districtIds: [],
                       mandalIds: [],

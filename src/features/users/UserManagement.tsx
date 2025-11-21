@@ -2,17 +2,11 @@ import { useMemo, useState, useEffect } from "react";
 import {
   Search,
   ChevronDown,
-  EllipsisVertical,
   CheckCircle2,
   Eye,
   Edit2,
   X,
   Save,
-  User,
-  Phone,
-  MapPin,
-  Calendar,
-  FileText,
 } from "lucide-react";
 import clsx from "clsx";
 import { memberService } from "../../services/memberService";
@@ -219,13 +213,11 @@ export default function UserManagement() {
     });
     
     // Find district ID from district name
-    let districtId: number | null = null;
     if (member.district) {
       const foundDistrict = districts.find(d => 
         d.name_en === member.district || d.name_te === member.district
       );
       if (foundDistrict) {
-        districtId = foundDistrict.id;
         setSelectedDistrictId(foundDistrict.id);
         // Fetch mandals for this district
         const fetchedMandals = await districtsService.getMandals({
@@ -669,8 +661,6 @@ export default function UserManagement() {
                     {selectedMember.assemblyConstituencyRef
                       ? (() => {
                           const num = selectedMember.assemblyConstituencyRef.constituencyNumber || 
-                                     selectedMember.assemblyConstituencyRef.assembly_constituency_number || 
-                                     selectedMember.assemblyConstituencyRef.number || 
                                      selectedMember.assemblyConstituencyRef.id;
                           return num ? `${num}. ${selectedMember.assemblyConstituencyRef.name_en}` : selectedMember.assemblyConstituencyRef.name_en;
                         })()

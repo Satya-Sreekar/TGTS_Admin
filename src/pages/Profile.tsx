@@ -330,8 +330,6 @@ export default function Profile() {
                   {user.assemblyConstituencyRef 
                     ? (() => {
                         const num = user.assemblyConstituencyRef.constituencyNumber || 
-                                   user.assemblyConstituencyRef.assembly_constituency_number || 
-                                   user.assemblyConstituencyRef.number || 
                                    user.assemblyConstituencyRef.id;
                         return num ? `${num}. ${user.assemblyConstituencyRef.name_en}` : user.assemblyConstituencyRef.name_en;
                       })()

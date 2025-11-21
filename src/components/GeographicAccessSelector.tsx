@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Check, ChevronDown, X } from 'lucide-react';
+import { Check, ChevronDown } from 'lucide-react';
 import { districtsService, type District, type Mandal } from '../services/districtsService';
 import { constituencyService, type ParliamentaryConstituency } from '../services/constituencyService';
 
@@ -185,12 +185,6 @@ export default function GeographicAccessSelector({
       });
     }
   };
-
-  // Check if districts/mandals group has any selections
-  const hasDistrictMandalSelection = value.districtIds.length > 0 || value.mandalIds.length > 0;
-  
-  // Check if constituencies group has any selections
-  const hasConstituencySelection = value.parliamentaryConstituencyIds.length > 0 || value.assemblyConstituencyIds.length > 0;
 
   const toggleDistrict = (districtId: number) => {
     if (value.postToAll) return;
