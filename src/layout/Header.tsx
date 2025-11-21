@@ -1,4 +1,4 @@
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Menu, LogOut, User } from "lucide-react";
 import { authService } from "../services/authService";
 
@@ -8,6 +8,7 @@ interface HeaderProps {
 
 export default function Header({ onMenuClick }: HeaderProps) {
   const { pathname } = useLocation();
+  const navigate = useNavigate();
   const isDashboard = pathname === "/";
   const user = authService.getStoredUser();
   
@@ -18,8 +19,10 @@ export default function Header({ onMenuClick }: HeaderProps) {
     if (pathname === "/content") return "Content Push";
     if (pathname === "/events") return "Event Management";
     if (pathname === "/media") return "Media Gallery";
+    if (pathname === "/constituencies") return "Constituency Management";
     if (pathname === "/analytics") return "Analytics";
     if (pathname === "/uploads") return "Upload Documents";
+    if (pathname === "/profile") return "My Profile";
     return "Admin Panel";
   };
 
@@ -56,10 +59,14 @@ export default function Header({ onMenuClick }: HeaderProps) {
         {/* User Info and Logout */}
         <div className="flex items-center gap-3">
           {user && (
-            <div className="hidden md:flex items-center gap-2 text-sm text-gray-600">
+            <button
+              onClick={() => navigate('/profile')}
+              className="hidden md:flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 px-3 py-2 rounded-md transition-colors cursor-pointer"
+              title="View Profile"
+            >
               <User className="w-4 h-4" />
               <span>{user.name || "Admin"}</span>
-            </div>
+            </button>
           )}
           <button
             onClick={handleLogout}

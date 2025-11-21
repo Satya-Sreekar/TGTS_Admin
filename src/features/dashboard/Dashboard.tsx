@@ -35,7 +35,7 @@ const membersByRegion = [
   { name: "Karimnagar", value: 1800 },
   { name: "Others", value: 2400 }
 ];
-const regionColors = ["#10B981", "#F59E0B", "#6366F1", "#EF4444", "#6B7280"];
+const regionColors = ["#10B981", "#19aaed", "#6366F1", "#EF4444", "#6B7280"];
 
 const engagement = [
   { month: "Apr", value: 9800 },
@@ -81,7 +81,7 @@ export default function Dashboard() {
         <h1 className="text-xl sm:text-2xl font-semibold">Dashboard</h1>
         <p className="text-xs sm:text-sm text-gray-500">Overview of key metrics and activities</p>
         {error && (
-          <div className="mt-2 text-xs text-orange-600 bg-orange-50 px-3 py-2 rounded-md">
+          <div className="mt-2 text-xs text-blue-600 bg-blue-50 px-3 py-2 rounded-md">
             {error}
           </div>
         )}
@@ -91,39 +91,39 @@ export default function Dashboard() {
         {/* Stats */}
         <div className="col-span-1 sm:col-span-2 lg:col-span-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
           <div className="col-span-1">
-            <StatCard 
-              icon={Users} 
-              value={stats?.total_users.toLocaleString() || "15,428"} 
-              label="Total Members" 
-              delta="+12.5%" 
-              trend="up" 
+            <StatCard
+              icon={Users}
+              value={stats?.total_users.toLocaleString() || "15,428"}
+              label="Total Members"
+              delta="+12.5%"
+              trend="up"
             />
           </div>
           <div className="col-span-1">
-            <StatCard 
-              icon={Activity} 
-              value={stats?.active_users.toLocaleString() || "8,942"} 
-              label="Active Users" 
-              delta="+8.2%" 
-              trend="up" 
+            <StatCard
+              icon={Activity}
+              value={stats?.active_users.toLocaleString() || "8,942"}
+              label="Active Users"
+              delta="+8.2%"
+              trend="up"
             />
           </div>
           <div className="col-span-1">
-            <StatCard 
-              icon={Megaphone} 
-              value={stats?.published_news.toLocaleString() || "124"} 
-              label="Published News" 
-              delta="+23.1%" 
-              trend="up" 
+            <StatCard
+              icon={Megaphone}
+              value={stats?.published_news.toLocaleString() || "124"}
+              label="Published News"
+              delta="+23.1%"
+              trend="up"
             />
           </div>
           <div className="col-span-1">
-            <StatCard 
-              icon={CalendarDays} 
-              value={stats?.upcoming_events.toString() || "42"} 
-              label="Upcoming Events" 
-              delta="-3" 
-              trend="down" 
+            <StatCard
+              icon={CalendarDays}
+              value={stats?.upcoming_events.toString() || "42"}
+              label="Upcoming Events"
+              delta="-3"
+              trend="down"
             />
           </div>
         </div>
@@ -190,9 +190,9 @@ export default function Dashboard() {
                       <div className="text-xs text-gray-500 truncate">{activity.type}</div>
                     </div>
                     <span className="text-xs text-gray-500 ml-2 flex-shrink-0">
-                      {new Date(activity.timestamp).toLocaleTimeString('en-US', { 
-                        hour: 'numeric', 
-                        minute: '2-digit' 
+                      {new Date(activity.timestamp).toLocaleTimeString('en-US', {
+                        hour: 'numeric',
+                        minute: '2-digit'
                       })}
                     </span>
                   </li>

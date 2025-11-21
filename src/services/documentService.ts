@@ -12,6 +12,10 @@ export type Document = {
   file_size: number;
   access_level: string[];
   is_published: boolean;
+  districtIds?: number[];
+  mandalIds?: number[];
+  assemblyConstituencyIds?: number[];
+  parliamentaryConstituencyIds?: number[];
   uploaded_by: number;
   created_at: string;
   updated_at: string;
@@ -21,6 +25,7 @@ export type DocumentFilters = {
   page?: number;
   per_page?: number;
   category?: string;
+  all?: boolean; // For admins to see all documents including unpublished
 };
 
 export type CreateDocumentRequest = {
@@ -34,6 +39,10 @@ export type CreateDocumentRequest = {
   file_size: number;
   access_level?: string[];
   is_published?: boolean;
+  districtIds?: number[];
+  mandalIds?: number[];
+  assemblyConstituencyIds?: number[];
+  parliamentaryConstituencyIds?: number[];
 };
 
 export const documentService = {

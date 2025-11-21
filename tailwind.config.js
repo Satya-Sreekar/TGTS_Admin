@@ -5,8 +5,9 @@ export default {
     extend: {
       colors: {
         brand: {
-          orange: "#F59E0B",
+          primary: "#19aaed", // Sky blue (Indian flag blue)
           green: "#10B981",
+          orange: "#F59E0B", // Indian flag orange
           dark: "#1F2937",
         },
       },

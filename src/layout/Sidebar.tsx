@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { Home, Users, Megaphone, CalendarDays, BarChart3, Upload, LogOut, Languages, Image, X } from "lucide-react";
+import { Home, Users, Megaphone, CalendarDays, BarChart3, Upload, LogOut, Languages, Image, X, MapPin, Map } from "lucide-react";
 import { useState } from "react";
 
 const nav = [
@@ -8,6 +8,8 @@ const nav = [
   { to: "/content", label: "Content Push", icon: Megaphone },
   { to: "/events", label: "Event Management", icon: CalendarDays },
   { to: "/media", label: "Media Gallery", icon: Image },
+  { to: "/constituencies", label: "Constituencies", icon: MapPin },
+  { to: "/districts", label: "Districts & Mandals", icon: Map },
   { to: "/analytics", label: "Analytics", icon: BarChart3 },
   { to: "/uploads", label: "Upload Documents", icon: Upload }
 ];
@@ -19,7 +21,7 @@ interface SidebarProps {
 
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const [language, setLanguage] = useState<"en" | "te">("en");
-  
+
   const handleNavClick = () => {
     // Close mobile menu when navigating
     if (window.innerWidth < 768) {
@@ -33,30 +35,30 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       <aside
         className={`
           fixed md:static inset-y-0 left-0 z-50
-          w-64 min-h-screen bg-gradient-to-b from-orange-500 via-orange-400 to-green-600 text-white flex flex-col
+          w-64 min-h-screen bg-gradient-to-b from-orange-500 via-white to-green-500 text-gray-900 flex flex-col
           transform transition-transform duration-300 ease-in-out
           ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
         `}
       >
         {/* Mobile Close Button */}
-        <div className="md:hidden flex items-center justify-between px-5 py-4 border-b border-white/20">
+        <div className="md:hidden flex items-center justify-between px-5 py-4 border-b border-gray-300/30">
           <div>
-            <div className="font-semibold text-xl">Admin Panel</div>
-            <div className="text-sm opacity-90">Telangana Congress</div>
+            <div className="font-semibold text-xl text-gray-900">Admin Panel</div>
+            <div className="text-sm text-gray-700">Telangana Congress</div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-white/20 rounded-md transition-colors"
+            className="p-2 hover:bg-gray-200/50 rounded-md transition-colors"
             aria-label="Close menu"
           >
-            <X className="w-6 h-6" />
+            <X className="w-6 h-6 text-gray-900" />
           </button>
         </div>
 
         {/* Desktop Header */}
         <div className="hidden md:block px-5 py-6">
-          <div className="font-semibold text-xl">Admin Panel</div>
-          <div className="text-sm opacity-90">Telangana Congress</div>
+          <div className="font-semibold text-xl text-gray-900">Admin Panel</div>
+          <div className="text-sm text-gray-700">Telangana Congress</div>
         </div>
 
         {/* Navigation */}
@@ -69,7 +71,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
               onClick={handleNavClick}
               className={({ isActive }) =>
                 `flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-base transition 
-                 ${isActive ? "bg-white/20" : "hover:bg-white/15"}`
+                 ${isActive ? "bg-gray-200/60 shadow-sm" : "hover:bg-gray-200/40"} text-gray-900`
               }
             >
               <Icon className="w-5 h-5 md:w-6 md:h-6 flex-shrink-0" />
@@ -79,9 +81,9 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         </nav>
 
         {/* Footer Actions */}
-        <div className="mt-auto px-2 pb-4 space-y-2 border-t border-white/20 pt-4">
+        <div className="mt-auto px-2 pb-4 space-y-2 border-t border-gray-300/30 pt-4">
           <button
-            className="flex items-center gap-2 w-full px-3 py-2 rounded-md bg-white/10 hover:bg-white/15 transition"
+            className="flex items-center gap-2 w-full px-3 py-2 rounded-md bg-gray-200/40 hover:bg-gray-200/60 transition text-gray-900"
             onClick={() => setLanguage(language === "en" ? "te" : "en")}
             aria-label="Change language"
             title="Change language"
@@ -89,7 +91,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             <Languages className="w-5 h-5" />
             <span className="text-sm">{language === "en" ? "తెలుగు" : "English"}</span>
           </button>
-          <button className="flex items-center gap-2 w-full px-3 py-2 rounded-md bg-white/10 hover:bg-white/15 transition">
+          <button className="flex items-center gap-2 w-full px-3 py-2 rounded-md bg-gray-200/40 hover:bg-gray-200/60 transition text-gray-900">
             <LogOut className="w-5 h-5" />
             <span className="text-sm">Logout</span>
           </button>

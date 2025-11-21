@@ -1,8 +1,11 @@
-import { useState, useEffect } from "react";
-import { FileText, Upload as UploadIcon, Download, Trash2, HardDrive, X, CheckCircle, AlertCircle, Eye, EyeOff } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { FileText, Upload as UploadIcon, Download, Trash2, HardDrive, X, CheckCircle, AlertCircle, Eye, EyeOff, Edit } from "lucide-react";
 import type { ElementType } from "react";
 import clsx from "clsx";
 import { documentService, type Document } from "../../services/documentService";
+import { useAuth } from "../../contexts/AuthContext";
+import { translationService } from "../../services/translationService";
+import GeographicAccessSelector, { type GeographicAccessData } from "../../components/GeographicAccessSelector";
 
 type DocCategory = "Policy" | "Circular" | "Guidelines" | "Reports" | "Other";
 
@@ -55,16 +58,27 @@ function AccessPill({ label }: { label: "public" | "cadre" | "admin" }) {
 }
 
 export default function UploadDocuments() {
+  const { user } = useAuth();
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingDocument, setEditingDocument] = useState<Document | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [titleEn, setTitleEn] = useState("");
   const [titleTe, setTitleTe] = useState("");
   const [category, setCategory] = useState<DocCategory>("Policy");
   const [accessLevels, setAccessLevels] = useState<Array<"public" | "cadre" | "admin">>(["public"]);
   const [isPublished, setIsPublished] = useState(true);
+  const [geographicAccess, setGeographicAccess] = useState<GeographicAccessData>({
+    districtIds: [],
+    mandalIds: [],
+    assemblyConstituencyIds: [],
+    parliamentaryConstituencyIds: [],
+    postToAll: true,
+  });
   const [uploading, setUploading] = useState(false);
+  const [updating, setUpdating] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -74,15 +88,35 @@ export default function UploadDocuments() {
   const categories: DocCategory[] = ["Policy", "Circular", "Guidelines", "Reports", "Other"];
   const accessLevelOptions: Array<"public" | "cadre" | "admin"> = ["public", "cadre", "admin"];
 
+  // Track if Telugu field was manually edited
+  const titleTeManualEdit = useRef(false);
+
   useEffect(() => {
     loadDocuments();
   }, [currentPage]);
+
+  // Auto-translate Title English to Telugu (only when not editing)
+  useEffect(() => {
+    if (!titleEn || titleTeManualEdit.current || showEditModal) {
+      return;
+    }
+    
+    const debouncedTranslate = translationService.createDebouncedTranslator(800);
+    const currentTitleEn = titleEn;
+    
+    debouncedTranslate(currentTitleEn, (translated) => {
+      if (!titleTeManualEdit.current && !showEditModal) {
+        setTitleTe(translated);
+      }
+    });
+  }, [titleEn, showEditModal]);
 
   const loadDocuments = async () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await documentService.getDocuments({ page: currentPage, per_page: 20 });
+      // Pass all=true for admins to see all documents including unpublished and with geographic restrictions
+      const response = await documentService.getDocuments({ page: currentPage, per_page: 20, all: true });
       setDocuments(response.documents || []);
       setTotalDocs(response.total || 0);
       setTotalPages(response.pages || 1);
@@ -158,6 +192,10 @@ export default function UploadDocuments() {
         file_size: uploadResult.file_size || selectedFile.size,
         access_level: accessLevels,
         is_published: isPublished,
+        districtIds: geographicAccess.postToAll ? undefined : (geographicAccess.districtIds.length > 0 ? geographicAccess.districtIds : undefined),
+        mandalIds: geographicAccess.postToAll ? undefined : (geographicAccess.mandalIds.length > 0 ? geographicAccess.mandalIds : undefined),
+        assemblyConstituencyIds: geographicAccess.postToAll ? undefined : (geographicAccess.assemblyConstituencyIds.length > 0 ? geographicAccess.assemblyConstituencyIds : undefined),
+        parliamentaryConstituencyIds: geographicAccess.postToAll ? undefined : (geographicAccess.parliamentaryConstituencyIds.length > 0 ? geographicAccess.parliamentaryConstituencyIds : undefined),
       };
 
       await documentService.createDocument(documentData);
@@ -172,8 +210,16 @@ export default function UploadDocuments() {
         setCategory("Policy");
         setAccessLevels(["public"]);
         setIsPublished(true);
+        setGeographicAccess({
+          districtIds: [],
+          mandalIds: [],
+          assemblyConstituencyIds: [],
+          parliamentaryConstituencyIds: [],
+          postToAll: true,
+        });
         setShowUploadModal(false);
         setSuccess(false);
+        titleTeManualEdit.current = false; // Reset manual edit flag
         loadDocuments(); // Reload documents list
       }, 2000);
 
@@ -197,6 +243,119 @@ export default function UploadDocuments() {
     } catch (err: any) {
       console.error("Failed to delete document:", err);
       alert(err.response?.data?.message || err.message || "Failed to delete document");
+    }
+  };
+
+  const handleEdit = (doc: Document) => {
+    // Pre-populate all form fields with existing document data
+    setEditingDocument(doc);
+    setTitleEn(doc.title_en || "");
+    setTitleTe(doc.title_te || "");
+    setCategory((doc.category as DocCategory) || "Policy");
+    
+    // Handle access levels - convert to array if needed
+    let accessLevelsArray: Array<"public" | "cadre" | "admin"> = ["public"];
+    if (Array.isArray(doc.access_level)) {
+      accessLevelsArray = doc.access_level as Array<"public" | "cadre" | "admin">;
+    } else if (doc.access_level) {
+      // If it's a string, try to parse it
+      try {
+        const parsed = typeof doc.access_level === 'string' ? JSON.parse(doc.access_level) : doc.access_level;
+        accessLevelsArray = Array.isArray(parsed) ? parsed as Array<"public" | "cadre" | "admin"> : ["public"];
+      } catch {
+        accessLevelsArray = ["public"];
+      }
+    }
+    setAccessLevels(accessLevelsArray);
+    
+    setIsPublished(doc.is_published !== undefined ? doc.is_published : true);
+    
+    // Pre-populate geographic access data
+    // Handle null, undefined, or array values from the API
+    const getArrayValue = (value: any): number[] => {
+      if (value === null || value === undefined) return [];
+      if (Array.isArray(value)) {
+        // Filter out null/undefined values and ensure all are numbers
+        return value.filter((id: any) => id != null && !isNaN(Number(id))).map((id: any) => Number(id));
+      }
+      return [];
+    };
+    
+    const districtIds = getArrayValue(doc.districtIds);
+    const mandalIds = getArrayValue(doc.mandalIds);
+    const assemblyConstituencyIds = getArrayValue(doc.assemblyConstituencyIds);
+    const parliamentaryConstituencyIds = getArrayValue(doc.parliamentaryConstituencyIds);
+    
+    // Check if there are any geographic restrictions
+    // If all arrays are empty, it means "post to all"
+    const hasGeographicRestrictions = 
+      districtIds.length > 0 ||
+      mandalIds.length > 0 ||
+      assemblyConstituencyIds.length > 0 ||
+      parliamentaryConstituencyIds.length > 0;
+    
+    setGeographicAccess({
+      districtIds: districtIds,
+      mandalIds: mandalIds,
+      assemblyConstituencyIds: assemblyConstituencyIds,
+      parliamentaryConstituencyIds: parliamentaryConstituencyIds,
+      postToAll: !hasGeographicRestrictions,
+    });
+    
+    setSelectedFile(null);
+    setError(null);
+    setSuccess(false);
+    titleTeManualEdit.current = !!doc.title_te;
+    setShowEditModal(true);
+  };
+
+  const handleUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingDocument) return;
+
+    setUpdating(true);
+    setError(null);
+    setSuccess(false);
+
+    try {
+      const updateData = {
+        title_en: titleEn,
+        title_te: titleTe || undefined,
+        category: category,
+        access_level: accessLevels,
+        is_published: isPublished,
+        districtIds: geographicAccess.postToAll ? [] : geographicAccess.districtIds,
+        mandalIds: geographicAccess.postToAll ? [] : geographicAccess.mandalIds,
+        assemblyConstituencyIds: geographicAccess.postToAll ? [] : geographicAccess.assemblyConstituencyIds,
+        parliamentaryConstituencyIds: geographicAccess.postToAll ? [] : geographicAccess.parliamentaryConstituencyIds,
+      };
+
+      await documentService.updateDocument(editingDocument.id.toString(), updateData);
+      setSuccess(true);
+      setTimeout(() => {
+        setShowEditModal(false);
+        setEditingDocument(null);
+        loadDocuments();
+        // Reset form
+        setTitleEn("");
+        setTitleTe("");
+        setCategory("Policy");
+        setAccessLevels(["public"]);
+        setIsPublished(true);
+        setGeographicAccess({
+          districtIds: [],
+          mandalIds: [],
+          assemblyConstituencyIds: [],
+          parliamentaryConstituencyIds: [],
+          postToAll: true,
+        });
+        titleTeManualEdit.current = false;
+      }, 1500);
+    } catch (err: any) {
+      console.error("Failed to update document:", err);
+      setError(err.response?.data?.message || err.message || "Failed to update document");
+    } finally {
+      setUpdating(false);
     }
   };
 
@@ -257,6 +416,28 @@ export default function UploadDocuments() {
     return formatFileSize(totalBytes);
   };
 
+  const filteredDocuments = documents.filter(doc => {
+    if (!user) return false;
+    const userRole = user.role?.toLowerCase() || 'public';
+    
+    if (userRole === 'admin') return true;
+    
+    const docAccessLevels = Array.isArray(doc.access_level) 
+      ? doc.access_level.map(l => l.toLowerCase())
+      : [doc.access_level].filter(Boolean).map(l => String(l).toLowerCase());
+
+    if (userRole === 'cadre') {
+      return docAccessLevels.some(level => ['public', 'cadre'].includes(level));
+    }
+    
+    // default to public
+    return docAccessLevels.includes('public');
+  });
+
+  const canUpload = user?.role?.toLowerCase() === 'admin' || user?.role?.toLowerCase() === 'cadre';
+  const canDelete = user?.role?.toLowerCase() === 'admin';
+  const canEdit = user?.role?.toLowerCase() === 'admin' || user?.role?.toLowerCase() === 'cadre';
+
   return (
     <div className="space-y-4">
       {/* Header + action */}
@@ -265,13 +446,15 @@ export default function UploadDocuments() {
           <h1 className="text-xl sm:text-2xl font-semibold">Upload Documents</h1>
           <p className="text-xs sm:text-sm text-gray-500">Upload and manage party documents</p>
         </div>
-        <button
-          onClick={() => setShowUploadModal(true)}
-          className="flex items-center justify-center gap-2 px-4 py-2 rounded-md bg-orange-500 text-white hover:bg-orange-600 transition-colors text-sm sm:text-base"
-        >
-          <UploadIcon className="w-4 h-4" />
-          Upload Document
-        </button>
+        {canUpload && (
+          <button
+            onClick={() => setShowUploadModal(true)}
+            className="flex items-center justify-center gap-2 px-4 py-2 rounded-md bg-orange-500 text-white hover:bg-orange-600 transition-colors text-sm sm:text-base"
+          >
+            <UploadIcon className="w-4 h-4" />
+            Upload Document
+          </button>
+        )}
       </div>
 
       {/* Metrics */}
@@ -280,7 +463,7 @@ export default function UploadDocuments() {
           <MetricCard icon={FileText} value={totalDocs} label="Total Documents" />
         </div>
         <div>
-          <MetricCard icon={UploadIcon} value={documents.length} label="Current Page" color="bg-green-100" />
+          <MetricCard icon={UploadIcon} value={filteredDocuments.length} label="Visible Documents" color="bg-green-100" />
         </div>
         <div>
           <MetricCard icon={Download} value={0} label="Total Downloads" color="bg-indigo-100" />
@@ -302,8 +485,8 @@ export default function UploadDocuments() {
       <div className="bg-white rounded-lg shadow-card overflow-hidden">
         {loading ? (
           <div className="p-8 text-center text-gray-500">Loading documents...</div>
-        ) : documents.length === 0 ? (
-          <div className="p-8 text-center text-gray-500">No documents found. Upload your first document!</div>
+        ) : filteredDocuments.length === 0 ? (
+          <div className="p-8 text-center text-gray-500">No documents found.</div>
         ) : (
           <table className="min-w-full">
             <thead className="bg-gray-50">
@@ -318,7 +501,7 @@ export default function UploadDocuments() {
               </tr>
             </thead>
             <tbody>
-              {documents.map((doc) => (
+              {filteredDocuments.map((doc) => (
                 <tr key={doc.id} className="border-t">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
@@ -378,13 +561,24 @@ export default function UploadDocuments() {
                           isValidFileUrl(doc.file_url) ? "text-gray-700" : "text-gray-400"
                         )} />
                       </button>
-                      <button
-                        onClick={() => handleDelete(doc.id.toString())}
-                        className="p-2 rounded-md hover:bg-red-50"
-                        title="Delete"
-                      >
-                        <Trash2 className="w-4 h-4 text-red-600" />
-                      </button>
+                      {canEdit && (
+                        <button
+                          onClick={() => handleEdit(doc)}
+                          className="p-2 rounded-md hover:bg-blue-50"
+                          title="Edit"
+                        >
+                          <Edit className="w-4 h-4 text-blue-600" />
+                        </button>
+                      )}
+                      {canDelete && (
+                        <button
+                          onClick={() => handleDelete(doc.id.toString())}
+                          className="p-2 rounded-md hover:bg-red-50"
+                          title="Delete"
+                        >
+                          <Trash2 className="w-4 h-4 text-red-600" />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -488,8 +682,12 @@ export default function UploadDocuments() {
                   <input
                     type="text"
                     value={titleTe}
-                    onChange={(e) => setTitleTe(e.target.value)}
+                    onChange={(e) => {
+                      setTitleTe(e.target.value);
+                      titleTeManualEdit.current = true;
+                    }}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-300"
+                    placeholder="Auto-translated"
                   />
                 </div>
 
@@ -542,6 +740,16 @@ export default function UploadDocuments() {
                   </label>
                 </div>
 
+                {/* Geographic Access Control */}
+                <div className="border-t pt-4">
+                  <h3 className="text-sm font-medium mb-3">Geographic Access</h3>
+                  <GeographicAccessSelector
+                    value={geographicAccess}
+                    onChange={setGeographicAccess}
+                    disabled={uploading}
+                  />
+                </div>
+
                 <div className="flex gap-2 pt-4">
                   <button
                     type="button"
@@ -549,6 +757,7 @@ export default function UploadDocuments() {
                       setShowUploadModal(false);
                       setError(null);
                       setSuccess(false);
+                      titleTeManualEdit.current = false; // Reset manual edit flag
                     }}
                     className="flex-1 px-4 py-2 rounded-md border hover:bg-gray-50"
                     disabled={uploading}
@@ -564,6 +773,178 @@ export default function UploadDocuments() {
                   </button>
                 </div>
               </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      {showEditModal && editingDocument && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full p-4 sm:p-6 my-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg sm:text-xl font-semibold">Edit Document</h2>
+              <button
+                onClick={() => {
+                  setShowEditModal(false);
+                  setEditingDocument(null);
+                  setError(null);
+                  setSuccess(false);
+                }}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {success && (
+              <div className="mb-4 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-md flex items-center gap-2">
+                <CheckCircle className="w-5 h-5" />
+                <span>Document updated successfully!</span>
+              </div>
+            )}
+
+            {error && (
+              <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md flex items-center gap-2">
+                <AlertCircle className="w-5 h-5" />
+                <span>{error}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleUpdate} className="space-y-4">
+              {/* Display current file info */}
+              {editingDocument?.file_url && (
+                <div className="bg-gray-50 border border-gray-200 rounded-md p-3 mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Current File
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-gray-500" />
+                    <a
+                      href={editingDocument.file_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-blue-600 hover:underline truncate"
+                    >
+                      {editingDocument.file_url}
+                    </a>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    File cannot be changed. Only metadata can be edited.
+                  </p>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Title (English) <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={titleEn}
+                  onChange={(e) => setTitleEn(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-300"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Title (Telugu)
+                </label>
+                <input
+                  type="text"
+                  value={titleTe}
+                  onChange={(e) => {
+                    setTitleTe(e.target.value);
+                    titleTeManualEdit.current = true;
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-300"
+                  placeholder="Auto-translated"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Category <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value as DocCategory)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-300"
+                  required
+                >
+                  {categories.map((cat) => (
+                    <option key={cat} value={cat}>
+                      {cat}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Access Level <span className="text-red-500">*</span>
+                </label>
+                <div className="flex gap-4">
+                  {accessLevelOptions.map((level) => (
+                    <label key={level} className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={accessLevels.includes(level)}
+                        onChange={() => toggleAccessLevel(level)}
+                        className="rounded w-4 h-4 text-orange-500 border-gray-300 focus:ring-orange-300 bg-white"
+                      />
+                      <span className="text-sm capitalize">{level}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={isPublished}
+                    onChange={(e) => setIsPublished(e.target.checked)}
+                    className="rounded w-4 h-4 text-orange-500 border-gray-300 focus:ring-orange-300 bg-white"
+                  />
+                  <span className="text-sm">Publish immediately</span>
+                </label>
+              </div>
+
+              {/* Geographic Access Control */}
+              <div className="border-t pt-4">
+                <h3 className="text-sm font-medium mb-3">Geographic Access</h3>
+                <GeographicAccessSelector
+                  value={geographicAccess}
+                  onChange={setGeographicAccess}
+                  disabled={updating}
+                />
+              </div>
+
+              <div className="flex gap-2 pt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowEditModal(false);
+                    setEditingDocument(null);
+                    setError(null);
+                    setSuccess(false);
+                  }}
+                  className="flex-1 px-4 py-2 rounded-md border hover:bg-gray-50"
+                  disabled={updating}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={updating}
+                  className="flex-1 px-4 py-2 bg-orange-500 text-white rounded-md hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {updating ? "Updating..." : "Update Document"}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

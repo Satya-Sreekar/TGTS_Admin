@@ -20,6 +20,10 @@ export type Event = {
   image?: string;
   rsvpCount: number;
   isPublished: boolean;
+  districtIds?: number[];
+  mandalIds?: number[];
+  assemblyConstituencyIds?: number[];
+  parliamentaryConstituencyIds?: number[];
 };
 
 export type EventsResponse = {
@@ -48,6 +52,10 @@ export type CreateEventRequest = {
   location_te: string;
   image_url?: string;
   is_published?: boolean;
+  districtIds?: number[];
+  mandalIds?: number[];
+  assemblyConstituencyIds?: number[];
+  parliamentaryConstituencyIds?: number[];
 };
 
 // RSVP/Attendee type

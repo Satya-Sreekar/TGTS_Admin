@@ -11,6 +11,11 @@ export type MediaItem = {
   };
   date: string;
   isPublished: boolean;
+  access_level?: Array<"public" | "cadre" | "admin">;
+  districtIds?: number[];
+  mandalIds?: number[];
+  assemblyConstituencyIds?: number[];
+  parliamentaryConstituencyIds?: number[];
 };
 
 export type MediaListResponse = {
@@ -27,6 +32,11 @@ export type CreateMediaRequest = {
   title_en: string;
   title_te: string;
   is_published?: boolean;
+  access_level?: Array<"public" | "cadre" | "admin">;
+  districtIds?: number[];
+  mandalIds?: number[];
+  assemblyConstituencyIds?: number[];
+  parliamentaryConstituencyIds?: number[];
 };
 
 export type MediaFilters = {

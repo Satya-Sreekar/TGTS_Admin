@@ -7,7 +7,10 @@ import EventManagement from "./features/events/EventManagement";
 import PagePlaceholder from "./pages/PagePlaceholder";
 import UploadDocuments from "./features/documents/UploadDocuments";
 import MediaManagement from "./features/media/MediaManagement";
+import ConstituencyManagement from "./features/constituencies/ConstituencyManagement";
+import DistrictsManagement from "./features/districts/DistrictsManagement";
 import Login from "./pages/Login";
+import Profile from "./pages/Profile";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 export default function App() {
@@ -29,8 +32,11 @@ export default function App() {
         <Route path="content" element={<ContentPush />} />
         <Route path="events" element={<EventManagement />} />
         <Route path="media" element={<MediaManagement />} />
+        <Route path="constituencies" element={<ConstituencyManagement />} />
+        <Route path="districts" element={<DistrictsManagement />} />
         <Route path="analytics" element={<PagePlaceholder title="Analytics" />} />
         <Route path="uploads" element={<UploadDocuments />} />
+        <Route path="profile" element={<Profile />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

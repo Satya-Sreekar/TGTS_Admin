@@ -6,6 +6,7 @@ import { eventService } from "../../services/eventService";
 import type { Event, CreateEventRequest, AttendeesResponse } from "../../services/eventService";
 import { translationService } from "../../services/translationService";
 import { parseToIST, formatISTForDisplay, getISTNow, formatISTISO, formatISTDateString } from "../../utils/timezone";
+import GeographicAccessSelector, { type GeographicAccessData } from "../../components/GeographicAccessSelector";
 
 // Display format for events (simplified from API format)
 type EventItem = {
@@ -201,6 +202,13 @@ export default function EventManagement() {
   const [locationTe, setLocationTe] = useState("");
   const [imageUrl, setImageUrl] = useState("");
   const [isPublished, setIsPublished] = useState(true);
+  const [geographicAccess, setGeographicAccess] = useState<GeographicAccessData>({
+    districtIds: [],
+    mandalIds: [],
+    assemblyConstituencyIds: [],
+    parliamentaryConstituencyIds: [],
+    postToAll: true,
+  });
 
   // Track if Telugu fields were manually edited (to avoid overwriting manual edits)
   const titleTeManualEdit = useRef(false);
@@ -209,38 +217,50 @@ export default function EventManagement() {
 
   // Auto-translate Title English to Telugu
   useEffect(() => {
-    if (titleEn && !titleTeManualEdit.current) {
-      const debouncedTranslate = translationService.createDebouncedTranslator(800);
-      debouncedTranslate(titleEn, (translated) => {
-        if (!titleTeManualEdit.current) {
-          setTitleTe(translated);
-        }
-      });
+    if (!titleEn || titleTeManualEdit.current) {
+      return;
     }
+    
+    const debouncedTranslate = translationService.createDebouncedTranslator(800);
+    const currentTitleEn = titleEn;
+    
+    debouncedTranslate(currentTitleEn, (translated) => {
+      if (!titleTeManualEdit.current) {
+        setTitleTe(translated);
+      }
+    });
   }, [titleEn]);
 
   // Auto-translate Description English to Telugu
   useEffect(() => {
-    if (descriptionEn && !descriptionTeManualEdit.current) {
-      const debouncedTranslate = translationService.createDebouncedTranslator(800);
-      debouncedTranslate(descriptionEn, (translated) => {
-        if (!descriptionTeManualEdit.current) {
-          setDescriptionTe(translated);
-        }
-      });
+    if (!descriptionEn || descriptionTeManualEdit.current) {
+      return;
     }
+    
+    const debouncedTranslate = translationService.createDebouncedTranslator(800);
+    const currentDescEn = descriptionEn;
+    
+    debouncedTranslate(currentDescEn, (translated) => {
+      if (!descriptionTeManualEdit.current) {
+        setDescriptionTe(translated);
+      }
+    });
   }, [descriptionEn]);
 
   // Auto-translate Location English to Telugu
   useEffect(() => {
-    if (locationEn && !locationTeManualEdit.current) {
-      const debouncedTranslate = translationService.createDebouncedTranslator(800);
-      debouncedTranslate(locationEn, (translated) => {
-        if (!locationTeManualEdit.current) {
-          setLocationTe(translated);
-        }
-      });
+    if (!locationEn || locationTeManualEdit.current) {
+      return;
     }
+    
+    const debouncedTranslate = translationService.createDebouncedTranslator(800);
+    const currentLocationEn = locationEn;
+    
+    debouncedTranslate(currentLocationEn, (translated) => {
+      if (!locationTeManualEdit.current) {
+        setLocationTe(translated);
+      }
+    });
   }, [locationEn]);
 
   // Fetch events from API
@@ -431,6 +451,10 @@ export default function EventManagement() {
         location_te: locationTe.trim(),
         image_url: imageUrl.trim() || undefined,
         is_published: isPublished,
+        districtIds: geographicAccess.postToAll ? undefined : (geographicAccess.districtIds.length > 0 ? geographicAccess.districtIds : undefined),
+        mandalIds: geographicAccess.postToAll ? undefined : (geographicAccess.mandalIds.length > 0 ? geographicAccess.mandalIds : undefined),
+        assemblyConstituencyIds: geographicAccess.postToAll ? undefined : (geographicAccess.assemblyConstituencyIds.length > 0 ? geographicAccess.assemblyConstituencyIds : undefined),
+        parliamentaryConstituencyIds: geographicAccess.postToAll ? undefined : (geographicAccess.parliamentaryConstituencyIds.length > 0 ? geographicAccess.parliamentaryConstituencyIds : undefined),
       };
 
       await eventService.createEvent(eventData);
@@ -464,6 +488,13 @@ export default function EventManagement() {
     setLocationTe("");
     setImageUrl("");
     setIsPublished(false);
+    setGeographicAccess({
+      districtIds: [],
+      mandalIds: [],
+      assemblyConstituencyIds: [],
+      parliamentaryConstituencyIds: [],
+      postToAll: true,
+    });
     setCreateError(null);
     // Reset manual edit flags
     titleTeManualEdit.current = false;
@@ -858,6 +889,16 @@ export default function EventManagement() {
                 <label htmlFor="isPublished" className="text-sm font-medium">
                   Publish immediately
                 </label>
+              </div>
+
+              {/* Geographic Access Control */}
+              <div className="border-t pt-4">
+                <h3 className="text-sm font-medium mb-3">Geographic Access</h3>
+                <GeographicAccessSelector
+                  value={geographicAccess}
+                  onChange={setGeographicAccess}
+                  disabled={creating}
+                />
               </div>
 
               {/* Actions */}

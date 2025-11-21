@@ -4,6 +4,7 @@ import clsx from "clsx";
 import { adminService } from "../../services/adminService";
 import { mediaService } from "../../services/mediaService";
 import { translationService } from "../../services/translationService";
+import GeographicAccessSelector, { type GeographicAccessData } from "../../components/GeographicAccessSelector";
 
 const audienceTypes = ["All Members", "Cadre Only", "Public"] as const;
 const regions = ["Hyderabad", "Warangal", "Nizamabad", "Karimnagar", "Khammam", "Nalgonda"] as const;
@@ -22,6 +23,13 @@ export default function ContentPush() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [geographicAccess, setGeographicAccess] = useState<GeographicAccessData>({
+    districtIds: [],
+    mandalIds: [],
+    assemblyConstituencyIds: [],
+    parliamentaryConstituencyIds: [],
+    postToAll: true,
+  });
 
   // Track if Telugu fields were manually edited
   const titleTeManualEdit = useRef(false);
@@ -31,26 +39,34 @@ export default function ContentPush() {
 
   // Auto-translate Title English to Telugu
   useEffect(() => {
-    if (titleEn && !titleTeManualEdit.current) {
-      const debouncedTranslate = translationService.createDebouncedTranslator(800);
-      debouncedTranslate(titleEn, (translated) => {
-        if (!titleTeManualEdit.current) {
-          setTitleTe(translated);
-        }
-      });
+    if (!titleEn || titleTeManualEdit.current) {
+      return;
     }
+    
+    const debouncedTranslate = translationService.createDebouncedTranslator(800);
+    const currentTitleEn = titleEn;
+    
+    debouncedTranslate(currentTitleEn, (translated) => {
+      if (!titleTeManualEdit.current) {
+        setTitleTe(translated);
+      }
+    });
   }, [titleEn]);
 
   // Auto-translate Description English to Telugu
   useEffect(() => {
-    if (descEn && !descTeManualEdit.current) {
-      const debouncedTranslate = translationService.createDebouncedTranslator(800);
-      debouncedTranslate(descEn, (translated) => {
-        if (!descTeManualEdit.current) {
-          setDescTe(translated);
-        }
-      });
+    if (!descEn || descTeManualEdit.current) {
+      return;
     }
+    
+    const debouncedTranslate = translationService.createDebouncedTranslator(800);
+    const currentDescEn = descEn;
+    
+    debouncedTranslate(currentDescEn, (translated) => {
+      if (!descTeManualEdit.current) {
+        setDescTe(translated);
+      }
+    });
   }, [descEn]);
 
   // Create and cleanup image preview URL
@@ -112,7 +128,12 @@ export default function ContentPush() {
         target_roles: getRolesFromAudience(),
         target_regions: selectedRegions.length > 0 ? selectedRegions : undefined,
         content_type: mode === "news" ? "news" : "notification",
-        category: "announcement"
+        category: "announcement",
+        // Add geographic access fields
+        districtIds: geographicAccess.postToAll ? undefined : (geographicAccess.districtIds.length > 0 ? geographicAccess.districtIds : undefined),
+        mandalIds: geographicAccess.postToAll ? undefined : (geographicAccess.mandalIds.length > 0 ? geographicAccess.mandalIds : undefined),
+        assemblyConstituencyIds: geographicAccess.postToAll ? undefined : (geographicAccess.assemblyConstituencyIds.length > 0 ? geographicAccess.assemblyConstituencyIds : undefined),
+        parliamentaryConstituencyIds: geographicAccess.postToAll ? undefined : (geographicAccess.parliamentaryConstituencyIds.length > 0 ? geographicAccess.parliamentaryConstituencyIds : undefined),
       };
 
       // Handle image upload - create media item directly
@@ -152,6 +173,13 @@ export default function ContentPush() {
         setImageFile(null);
         setImagePreview(null);
         setSelectedRegions([]);
+        setGeographicAccess({
+          districtIds: [],
+          mandalIds: [],
+          assemblyConstituencyIds: [],
+          parliamentaryConstituencyIds: [],
+          postToAll: true,
+        });
         setSuccess(false);
         // Reset file input
         const fileInput = document.getElementById('content-image') as HTMLInputElement;
@@ -423,6 +451,16 @@ export default function ContentPush() {
                 ))}
               </div>
             </div>
+          </div>
+
+          {/* Geographic Access Control */}
+          <div className="bg-white rounded-lg shadow-card p-4 space-y-3">
+            <div className="font-medium">Geographic Access</div>
+            <GeographicAccessSelector
+              value={geographicAccess}
+              onChange={setGeographicAccess}
+              disabled={loading}
+            />
           </div>
 
           {/* Estimated Reach */}

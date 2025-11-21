@@ -2,12 +2,12 @@ import axios from 'axios';
 
 // API Configuration
 // Production mode - always use production API
-const USE_PRODUCTION = false;
+const USE_PRODUCTION = true;
 
 // Production API URL
 const PRODUCTION_URL = 'https://apitgts.codeology.solutions/api';
-// Get API URL - always use production
-const API_URL = PRODUCTION_URL;
+
+const API_URL = USE_PRODUCTION ? PRODUCTION_URL : 'http://localhost:5000/api';
 
 console.log('API Configuration:', {
   mode: USE_PRODUCTION ? 'PRODUCTION' : 'DEVELOPMENT',
@@ -34,7 +34,7 @@ api.interceptors.request.use(
     if (!config.headers) {
       config.headers = {} as any;
     }
-    
+
     const token = localStorage.getItem('token');
     if (token) {
       // Always set Authorization header, even for FormData requests
@@ -47,7 +47,7 @@ api.interceptors.request.use(
         console.warn('No auth token found for protected endpoint:', config.url);
       }
     }
-    
+
     // For FormData requests, don't set Content-Type manually
     // Axios will automatically set it with the correct boundary
     if (config.data instanceof FormData) {
@@ -71,12 +71,12 @@ api.interceptors.request.use(
         config.headers['Content-Type'] = 'application/json';
       }
     }
-    
+
     // Base URL already includes /api, so no need to add another /api prefix
     // The services call endpoints like /events/, /media/, etc.
     // With baseURL = 'https://apitgts.codeology.solutions/api'
     // Final URL will be: https://apitgts.codeology.solutions/api/events/
-    
+
     return config;
   },
   (error) => {
@@ -97,7 +97,7 @@ api.interceptors.response.use(
       baseURL: error.config?.baseURL,
       fullError: error
     });
-    
+
     if (error.response?.status === 401) {
       // Handle unauthorized - clear token and redirect to login
       console.warn('Unauthorized access - clearing auth tokens');
@@ -125,10 +125,10 @@ api.interceptors.response.use(
       const method = error.config?.method?.toUpperCase();
       const url = error.config?.url;
       const fullUrl = error.config?.baseURL + url;
-      
+
       console.error(`HTTP ${status}: ${statusText}`);
       console.error(`Request: ${method} ${fullUrl}`);
-      
+
       // Special handling for method not allowed errors
       if (status === 405) {
         console.error('Method Not Allowed - This usually means:');

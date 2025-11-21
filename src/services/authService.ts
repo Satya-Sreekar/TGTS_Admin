@@ -17,6 +17,38 @@ export type User = {
   enrollmentDate?: string; // API may return camelCase
   createdAt?: string;
   updatedAt?: string;
+  // Member fields
+  fullName?: string;
+  fatherName?: string;
+  dateOfBirth?: string;
+  gender?: string;
+  aadharNumber?: string;
+  epicNumber?: string;
+  epicFileUrl?: string;
+  village?: string;
+  mandal?: string;
+  district?: string;
+  parliamentConstituencyId?: number;
+  parliamentConstituencyRef?: {
+    id: number;
+    constituencyNumber: number;
+    name_en: string;
+    name_te: string;
+  };
+  assemblyConstituencyId?: number;
+  assemblyConstituencyRef?: {
+    id: number;
+    constituencyNumber: number;
+    name_en: string;
+    name_te: string;
+  };
+  fullAddress?: string;
+  partyDesignation?: string;
+  occupation?: string;
+  volunteerInterest?: boolean;
+  hasInsurance?: boolean;
+  insuranceNumber?: string;
+  status?: string;
 };
 
 export type AdminLoginResponse = {
@@ -61,5 +93,20 @@ export const authService = {
   storeAuth(token: string, user: any) {
     localStorage.setItem('token', token);
     localStorage.setItem('user', JSON.stringify(user));
+  },
+
+  // Get current user profile
+  async getProfile(): Promise<User> {
+    const response = await api.get('/auth/profile');
+    return response.data;
+  },
+
+  // Update user profile
+  async updateProfile(data: Partial<User>): Promise<User> {
+    const response = await api.put('/auth/profile', data);
+    const updatedUser = response.data;
+    // Update stored user
+    this.storeAuth(localStorage.getItem('token') || '', updatedUser);
+    return updatedUser;
   },
 };

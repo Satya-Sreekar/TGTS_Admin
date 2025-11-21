@@ -5,8 +5,9 @@ module.exports = {
     extend: {
       colors: {
         brand: {
-          orange: "#F59E0B",
-          green: "#10B981",
+          primary: "#19aaed", // Sky blue (Indian flag blue)
+          orange: "#F59E0B", // Indian flag orange
+          green: "#10B981", // Indian flag green
           dark: "#1F2937"
         }
       },

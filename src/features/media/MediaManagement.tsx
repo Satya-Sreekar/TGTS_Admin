@@ -3,6 +3,8 @@ import { Image, Video, UploadCloud, CheckCircle, AlertCircle, Eye, X, Edit, Tras
 import { mediaService } from "../../services/mediaService";
 import type { MediaItem } from "../../services/mediaService";
 import { getVideoThumbnail } from "../../utils/videoThumbnail";
+import { translationService } from "../../services/translationService";
+import GeographicAccessSelector, { type GeographicAccessData } from "../../components/GeographicAccessSelector";
 import { 
   getCachedMediaStats, 
   setCachedMediaStats, 
@@ -20,6 +22,14 @@ export default function MediaManagement() {
   const [titleEn, setTitleEn] = useState("");
   const [titleTe, setTitleTe] = useState("");
   const [isPublished, setIsPublished] = useState(true);
+  const [selectedAccessLevel, setSelectedAccessLevel] = useState<"public" | "cadre" | "admin">("public");
+  const [geographicAccess, setGeographicAccess] = useState<GeographicAccessData>({
+    districtIds: [],
+    mandalIds: [],
+    assemblyConstituencyIds: [],
+    parliamentaryConstituencyIds: [],
+    postToAll: true,
+  });
   const [uploading, setUploading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -51,10 +61,42 @@ export default function MediaManagement() {
   const [editTitleEn, setEditTitleEn] = useState("");
   const [editTitleTe, setEditTitleTe] = useState("");
   const [editIsPublished, setEditIsPublished] = useState(false);
+  const [editSelectedAccessLevel, setEditSelectedAccessLevel] = useState<"public" | "cadre" | "admin">("public");
+  const [editGeographicAccess, setEditGeographicAccess] = useState<GeographicAccessData>({
+    districtIds: [],
+    mandalIds: [],
+    assemblyConstituencyIds: [],
+    parliamentaryConstituencyIds: [],
+    postToAll: true,
+  });
   const [deletingMedia, setDeletingMedia] = useState<MediaItem | null>(null);
   const [processing, setProcessing] = useState<string | null>(null);
   const [videoThumbnails, setVideoThumbnails] = useState<Map<string, string | null>>(new Map());
   const thumbnailCacheRef = useRef<Map<string, string | null>>(new Map());
+
+  // Track if Telugu fields were manually edited
+  const titleTeManualEdit = useRef(false);
+  const editTitleTeManualEdit = useRef(false);
+
+  // Convert selected level to array including all lower levels
+  const getAccessLevelsArray = (level: "public" | "cadre" | "admin"): Array<"public" | "cadre" | "admin"> => {
+    switch (level) {
+      case "admin":
+        return ["public", "cadre", "admin"];
+      case "cadre":
+        return ["public", "cadre"];
+      case "public":
+      default:
+        return ["public"];
+    }
+  };
+
+  // Get the highest access level from an array
+  const getHighestAccessLevel = (levels: Array<"public" | "cadre" | "admin">): "public" | "cadre" | "admin" => {
+    if (levels.includes("admin")) return "admin";
+    if (levels.includes("cadre")) return "cadre";
+    return "public";
+  };
 
   // Reset to page 1 when filter changes
   useEffect(() => {
@@ -87,6 +129,38 @@ export default function MediaManagement() {
     loadTotals();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Auto-translate Title English to Telugu (upload form)
+  useEffect(() => {
+    if (!titleEn || titleTeManualEdit.current) {
+      return;
+    }
+    
+    const debouncedTranslate = translationService.createDebouncedTranslator(800);
+    const currentTitleEn = titleEn;
+    
+    debouncedTranslate(currentTitleEn, (translated) => {
+      if (!titleTeManualEdit.current) {
+        setTitleTe(translated);
+      }
+    });
+  }, [titleEn]);
+
+  // Auto-translate Title English to Telugu (edit form)
+  useEffect(() => {
+    if (!editTitleEn || editTitleTeManualEdit.current) {
+      return;
+    }
+    
+    const debouncedTranslate = translationService.createDebouncedTranslator(800);
+    const currentTitleEn = editTitleEn;
+    
+    debouncedTranslate(currentTitleEn, (translated) => {
+      if (!editTitleTeManualEdit.current) {
+        setEditTitleTe(translated);
+      }
+    });
+  }, [editTitleEn]);
 
   // Extract thumbnails for videos without thumbnails
   useEffect(() => {
@@ -199,7 +273,7 @@ export default function MediaManagement() {
   // Handle Escape key to close modals
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
+        if (e.key === 'Escape') {
         if (selectedMedia) {
           setSelectedMedia(null);
         } else if (editingMedia) {
@@ -207,7 +281,16 @@ export default function MediaManagement() {
           setEditTitleEn("");
           setEditTitleTe("");
           setEditIsPublished(false);
+          setEditSelectedAccessLevel("public");
+          setEditGeographicAccess({
+            districtIds: [],
+            mandalIds: [],
+            assemblyConstituencyIds: [],
+            parliamentaryConstituencyIds: [],
+            postToAll: true,
+          });
           setError(null);
+          editTitleTeManualEdit.current = false; // Reset manual edit flag
         } else if (deletingMedia) {
           setDeletingMedia(null);
           setError(null);
@@ -280,6 +363,11 @@ export default function MediaManagement() {
         title_en: titleEn,
         title_te: titleTe || titleEn,
         is_published: isPublished,
+        access_level: getAccessLevelsArray(selectedAccessLevel),
+        districtIds: geographicAccess.postToAll ? undefined : (geographicAccess.districtIds.length > 0 ? geographicAccess.districtIds : undefined),
+        mandalIds: geographicAccess.postToAll ? undefined : (geographicAccess.mandalIds.length > 0 ? geographicAccess.mandalIds : undefined),
+        assemblyConstituencyIds: geographicAccess.postToAll ? undefined : (geographicAccess.assemblyConstituencyIds.length > 0 ? geographicAccess.assemblyConstituencyIds : undefined),
+        parliamentaryConstituencyIds: geographicAccess.postToAll ? undefined : (geographicAccess.parliamentaryConstituencyIds.length > 0 ? geographicAccess.parliamentaryConstituencyIds : undefined),
       });
 
       console.log('Upload result:', result);
@@ -303,8 +391,17 @@ export default function MediaManagement() {
         setTitleEn("");
         setTitleTe("");
         setIsPublished(true);
+        setSelectedAccessLevel("public");
+        setGeographicAccess({
+          districtIds: [],
+          mandalIds: [],
+          assemblyConstituencyIds: [],
+          parliamentaryConstituencyIds: [],
+          postToAll: true,
+        });
         setShowUploadModal(false);
         setSuccess(false);
+        titleTeManualEdit.current = false; // Reset manual edit flag
         loadMedia(); // Reload media list
         loadTotals(); // Reload totals to sync with server
       }, 2000);
@@ -327,8 +424,55 @@ export default function MediaManagement() {
     setEditTitleEn(item.title.en);
     setEditTitleTe(item.title.te);
     setEditIsPublished(item.isPublished);
+    
+    // Pre-populate access level - get the highest level from the array
+    let accessLevelsArray: Array<"public" | "cadre" | "admin"> = ["public"];
+    if (item.access_level) {
+      if (Array.isArray(item.access_level)) {
+        accessLevelsArray = item.access_level as Array<"public" | "cadre" | "admin">;
+      } else if (typeof item.access_level === 'string') {
+        try {
+          const parsed = JSON.parse(item.access_level);
+          accessLevelsArray = Array.isArray(parsed) ? parsed as Array<"public" | "cadre" | "admin"> : ["public"];
+        } catch {
+          accessLevelsArray = ["public"];
+        }
+      }
+    }
+    setEditSelectedAccessLevel(getHighestAccessLevel(accessLevelsArray));
+    
+    // Pre-populate geographic access data
+    const getArrayValue = (value: any): number[] => {
+      if (value === null || value === undefined) return [];
+      if (Array.isArray(value)) {
+        return value.filter((id: any) => id != null && !isNaN(Number(id))).map((id: any) => Number(id));
+      }
+      return [];
+    };
+    
+    const districtIds = getArrayValue(item.districtIds);
+    const mandalIds = getArrayValue(item.mandalIds);
+    const assemblyConstituencyIds = getArrayValue(item.assemblyConstituencyIds);
+    const parliamentaryConstituencyIds = getArrayValue(item.parliamentaryConstituencyIds);
+    
+    // Check if there are any geographic restrictions
+    const hasGeographicRestrictions = 
+      districtIds.length > 0 ||
+      mandalIds.length > 0 ||
+      assemblyConstituencyIds.length > 0 ||
+      parliamentaryConstituencyIds.length > 0;
+    
+    setEditGeographicAccess({
+      districtIds: districtIds,
+      mandalIds: mandalIds,
+      assemblyConstituencyIds: assemblyConstituencyIds,
+      parliamentaryConstituencyIds: parliamentaryConstituencyIds,
+      postToAll: !hasGeographicRestrictions,
+    });
+    
     setError(null);
     setSuccess(false);
+    editTitleTeManualEdit.current = false; // Reset manual edit flag when opening edit
   };
 
   const handleSaveEdit = async (e: React.FormEvent) => {
@@ -349,6 +493,11 @@ export default function MediaManagement() {
         title_en: editTitleEn,
         title_te: editTitleTe || editTitleEn,
         is_published: editIsPublished,
+        access_level: getAccessLevelsArray(editSelectedAccessLevel),
+        districtIds: editGeographicAccess.postToAll ? undefined : (editGeographicAccess.districtIds.length > 0 ? editGeographicAccess.districtIds : undefined),
+        mandalIds: editGeographicAccess.postToAll ? undefined : (editGeographicAccess.mandalIds.length > 0 ? editGeographicAccess.mandalIds : undefined),
+        assemblyConstituencyIds: editGeographicAccess.postToAll ? undefined : (editGeographicAccess.assemblyConstituencyIds.length > 0 ? editGeographicAccess.assemblyConstituencyIds : undefined),
+        parliamentaryConstituencyIds: editGeographicAccess.postToAll ? undefined : (editGeographicAccess.parliamentaryConstituencyIds.length > 0 ? editGeographicAccess.parliamentaryConstituencyIds : undefined),
       });
 
       // Update cache if publish status changed
@@ -380,7 +529,16 @@ export default function MediaManagement() {
         setEditTitleEn("");
         setEditTitleTe("");
         setEditIsPublished(false);
+        setEditSelectedAccessLevel("public");
+        setEditGeographicAccess({
+          districtIds: [],
+          mandalIds: [],
+          assemblyConstituencyIds: [],
+          parliamentaryConstituencyIds: [],
+          postToAll: true,
+        });
         setSuccess(false);
+        editTitleTeManualEdit.current = false; // Reset manual edit flag
         loadMedia();
         loadTotals();
       }, 1500);
@@ -729,7 +887,7 @@ export default function MediaManagement() {
       {/* Upload Modal */}
       {showUploadModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-lg p-4 sm:p-6 my-auto">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl p-4 sm:p-6 my-auto">
             <h2 className="text-lg sm:text-xl font-semibold mb-4">Upload Media</h2>
 
             {/* Success Message */}
@@ -812,14 +970,48 @@ export default function MediaManagement() {
                 <input
                   type="text"
                   className="mt-1 w-full px-3 py-2 rounded-md border bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-300"
-                  placeholder="తెలుగులో శీర్షికను నమోదు చేయండి"
+                  placeholder="తెలుగులో శీర్షికను నమోదు చేయండి (Auto-translated)"
                   value={titleTe}
-                  onChange={(e) => setTitleTe(e.target.value)}
+                  onChange={(e) => {
+                    setTitleTe(e.target.value);
+                    titleTeManualEdit.current = true;
+                  }}
+                />
+              </div>
+
+              {/* Access Level */}
+              <div className="border-t pt-4 mt-4">
+                <label className="text-sm font-medium">Access Level <span className="text-red-500">*</span></label>
+                <p className="text-xs text-gray-500 mb-2">Select the minimum access level required (higher levels include lower levels)</p>
+                <select
+                  value={selectedAccessLevel}
+                  onChange={(e) => setSelectedAccessLevel(e.target.value as "public" | "cadre" | "admin")}
+                  className="mt-1 w-full px-3 py-2 rounded-md border bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-300"
+                  disabled={uploading}
+                >
+                  <option value="public">Public</option>
+                  <option value="cadre">Cadre</option>
+                  <option value="admin">Admin</option>
+                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  Selected: <span className="font-medium capitalize">{selectedAccessLevel}</span> 
+                  {selectedAccessLevel !== "public" && ` (includes: ${getAccessLevelsArray(selectedAccessLevel).join(", ")})`}
+                </p>
+              </div>
+
+              {/* Geographic Access Control */}
+              <div className="border-t pt-4 mt-4">
+                <h3 className="text-sm font-semibold text-gray-900 mb-3">Geographic Access Control</h3>
+                <p className="text-xs text-gray-500 mb-3">Select who can see this media based on their location</p>
+                <GeographicAccessSelector
+                  value={geographicAccess}
+                  onChange={setGeographicAccess}
+                  disabled={uploading}
                 />
               </div>
 
               {/* Published Status */}
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 border-t pt-4">
                 <input
                   type="checkbox"
                   id="isPublished"
@@ -839,7 +1031,9 @@ export default function MediaManagement() {
                     setSelectedFile(null);
                     setTitleEn("");
                     setTitleTe("");
+                    setSelectedAccessLevel("public");
                     setError(null);
+                    titleTeManualEdit.current = false; // Reset manual edit flag
                   }}
                   className="flex-1 px-4 py-2 rounded-md border hover:bg-gray-50"
                   disabled={uploading}
@@ -901,15 +1095,49 @@ export default function MediaManagement() {
                 <input
                   type="text"
                   className="mt-1 w-full px-3 py-2 rounded-md border bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-300"
-                  placeholder="తెలుగులో శీర్షికను నమోదు చేయండి"
+                  placeholder="తెలుగులో శీర్షికను నమోదు చేయండి (Auto-translated)"
                   value={editTitleTe}
-                  onChange={(e) => setEditTitleTe(e.target.value)}
+                  onChange={(e) => {
+                    setEditTitleTe(e.target.value);
+                    editTitleTeManualEdit.current = true;
+                  }}
+                  disabled={processing === editingMedia.id}
+                />
+              </div>
+
+              {/* Access Level */}
+              <div className="border-t pt-4 mt-4">
+                <label className="text-sm font-medium">Access Level <span className="text-red-500">*</span></label>
+                <p className="text-xs text-gray-500 mb-2">Select the minimum access level required (higher levels include lower levels)</p>
+                <select
+                  value={editSelectedAccessLevel}
+                  onChange={(e) => setEditSelectedAccessLevel(e.target.value as "public" | "cadre" | "admin")}
+                  className="mt-1 w-full px-3 py-2 rounded-md border bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-300"
+                  disabled={processing === editingMedia.id}
+                >
+                  <option value="public">Public</option>
+                  <option value="cadre">Cadre</option>
+                  <option value="admin">Admin</option>
+                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  Selected: <span className="font-medium capitalize">{editSelectedAccessLevel}</span> 
+                  {editSelectedAccessLevel !== "public" && ` (includes: ${getAccessLevelsArray(editSelectedAccessLevel).join(", ")})`}
+                </p>
+              </div>
+
+              {/* Geographic Access Control */}
+              <div className="border-t pt-4 mt-4">
+                <h3 className="text-sm font-semibold text-gray-900 mb-3">Geographic Access Control</h3>
+                <p className="text-xs text-gray-500 mb-3">Select who can see this media based on their location</p>
+                <GeographicAccessSelector
+                  value={editGeographicAccess}
+                  onChange={setEditGeographicAccess}
                   disabled={processing === editingMedia.id}
                 />
               </div>
 
               {/* Published Status */}
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 border-t pt-4">
                 <input
                   type="checkbox"
                   id="editIsPublished"
@@ -930,7 +1158,16 @@ export default function MediaManagement() {
                     setEditTitleEn("");
                     setEditTitleTe("");
                     setEditIsPublished(false);
+                    setEditAccessLevels(["public"]);
+                    setEditGeographicAccess({
+                      districtIds: [],
+                      mandalIds: [],
+                      assemblyConstituencyIds: [],
+                      parliamentaryConstituencyIds: [],
+                      postToAll: true,
+                    });
                     setError(null);
+                    editTitleTeManualEdit.current = false; // Reset manual edit flag
                   }}
                   className="flex-1 px-4 py-2 rounded-md border hover:bg-gray-50"
                   disabled={processing === editingMedia.id}

@@ -14,8 +14,20 @@ export type Member = {
   village?: string;
   mandal?: string;
   district?: string;
-  parliamentConstituency?: string;
-  assemblyConstituency?: string;
+  parliamentConstituencyId?: number;
+  parliamentConstituencyRef?: {
+    id: number;
+    constituencyNumber: number;
+    name_en: string;
+    name_te: string;
+  };
+  assemblyConstituencyId?: number;
+  assemblyConstituencyRef?: {
+    id: number;
+    constituencyNumber: number;
+    name_en: string;
+    name_te: string;
+  };
   fullAddress?: string;
   partyDesignation?: string;
   occupation?: string;
@@ -24,6 +36,7 @@ export type Member = {
   insuranceNumber?: string;
   status: 'pending' | 'approved' | 'rejected';
   isActive: boolean;
+  role?: string;
   createdAt?: string;
   updatedAt?: string;
 };
@@ -34,6 +47,30 @@ export type MemberFilters = {
   status?: 'pending' | 'approved' | 'rejected';
   district?: string;
   search?: string;
+};
+
+export type MemberUpdateData = {
+  fullName?: string;
+  fatherName?: string;
+  dateOfBirth?: string;
+  gender?: string;
+  phone?: string;
+  aadharNumber?: string;
+  epicNumber?: string;
+  village?: string;
+  mandal?: string;
+  district?: string;
+  parliamentConstituencyId?: number;
+  assemblyConstituencyId?: number;
+  fullAddress?: string;
+  partyDesignation?: string;
+  occupation?: string;
+  volunteerInterest?: boolean;
+  hasInsurance?: boolean;
+  insuranceNumber?: string;
+  status?: 'pending' | 'approved' | 'rejected';
+  isActive?: boolean;
+  role?: string;
 };
 
 export const memberService = {
@@ -52,6 +89,12 @@ export const memberService = {
   // Update member status (admin/cadre only)
   async updateMemberStatus(memberId: string, status: 'pending' | 'approved' | 'rejected'): Promise<Member> {
     const response = await api.put(`/members/${memberId}`, { status });
+    return response.data;
+  },
+
+  // Update member (admin only)
+  async updateMember(memberId: string, data: MemberUpdateData): Promise<Member> {
+    const response = await api.put(`/members/${memberId}`, data);
     return response.data;
   },
 };
