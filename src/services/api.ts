@@ -99,13 +99,25 @@ api.interceptors.response.use(
     });
 
     if (error.response?.status === 401) {
-      // Handle unauthorized - clear token and redirect to login
-      console.warn('Unauthorized access - clearing auth tokens');
+      // Handle unauthorized - token expired or invalid
+      console.warn('Unauthorized access - token expired or invalid. Auto-logging out...');
+      
+      // Clear auth tokens
       localStorage.removeItem('token');
       localStorage.removeItem('user');
+      
+      // Store logout reason in sessionStorage to show message on login page
+      sessionStorage.setItem('logoutReason', 'token_expired');
+      
+      // Dispatch custom event to notify AuthContext
+      window.dispatchEvent(new CustomEvent('auth:logout', { detail: { reason: 'token_expired' } }));
+      
       // Only redirect if we're not already on login page
       if (window.location.pathname !== '/login') {
-        // window.location.href = '/login'; // Commented out for now since we don't have login page yet
+        // Use setTimeout to ensure state is cleared before redirect
+        setTimeout(() => {
+          window.location.href = '/login';
+        }, 100);
       }
     } else if (error.response?.status === 0 || error.code === 'ERR_NETWORK' || error.code === 'ECONNREFUSED') {
       // Network error - could be CORS, connection refused, or server down

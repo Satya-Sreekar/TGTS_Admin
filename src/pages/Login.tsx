@@ -8,8 +8,18 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [logoutMessage, setLogoutMessage] = useState<string | null>(null);
   const navigate = useNavigate();
   const { adminLogin, isAuthenticated } = useAuth();
+
+  // Check for auto-logout message
+  useEffect(() => {
+    const reason = sessionStorage.getItem('logoutReason');
+    if (reason === 'token_expired') {
+      setLogoutMessage('Your session has expired. Please login again.');
+      sessionStorage.removeItem('logoutReason');
+    }
+  }, []);
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -51,6 +61,13 @@ export default function Login() {
             Enter your credentials to access the admin panel
           </p>
         </div>
+
+        {logoutMessage && (
+          <div className="mb-6 bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-center gap-2 text-amber-800">
+            <AlertCircle className="w-5 h-5 flex-shrink-0" />
+            <span className="text-sm">{logoutMessage}</span>
+          </div>
+        )}
 
         {error && (
           <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 flex items-center gap-2 text-red-800">

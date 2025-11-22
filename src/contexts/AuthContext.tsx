@@ -51,6 +51,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     };
 
     initAuth();
+
+    // Listen for auto-logout events (e.g., token expiration)
+    const handleAutoLogout = (event: CustomEvent) => {
+      console.log('Auto-logout triggered:', event.detail?.reason || 'unknown');
+      setUser(null);
+    };
+
+    window.addEventListener('auth:logout', handleAutoLogout as EventListener);
+
+    return () => {
+      window.removeEventListener('auth:logout', handleAutoLogout as EventListener);
+    };
   }, []);
 
   const login = async (_phone: string, _otp: string) => {

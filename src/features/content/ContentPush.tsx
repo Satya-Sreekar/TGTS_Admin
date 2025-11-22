@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Megaphone, Bell, UploadCloud, CheckCircle, AlertCircle, X } from "lucide-react";
-import clsx from "clsx";
+import { Megaphone, UploadCloud, CheckCircle, AlertCircle, X } from "lucide-react";
 import { adminService } from "../../services/adminService";
 import { mediaService } from "../../services/mediaService";
 import { translationService } from "../../services/translationService";
@@ -9,7 +8,6 @@ import GeographicAccessSelector, { type GeographicAccessData } from "../../compo
 const audienceTypes = ["All Members", "Cadre Only", "Public"] as const;
 
 export default function ContentPush() {
-  const [mode, setMode] = useState<"news" | "push">("news");
   const [audience, setAudience] = useState<(typeof audienceTypes)[number]>("All Members");
   const [titleEn, setTitleEn] = useState("");
   const [titleTe, setTitleTe] = useState("");
@@ -121,7 +119,7 @@ export default function ContentPush() {
         message: descEn || titleEn,
         description_te: descTe.trim() || descEn || titleEn, // Use English as fallback
         target_roles: getRolesFromAudience(),
-        content_type: mode === "news" ? "news" : "notification",
+        content_type: "news",
         category: "announcement",
         // Add geographic access fields
         districtIds: geographicAccess.postToAll ? undefined : (geographicAccess.districtIds.length > 0 ? geographicAccess.districtIds : undefined),
@@ -135,13 +133,13 @@ export default function ContentPush() {
         try {
           console.log("Uploading to Media Gallery:", imageFile.name);
           
-          // Upload to media gallery
+          // Upload to media gallery with 'news' folder
           const mediaItem = await mediaService.uploadMedia(imageFile, {
             type: 'photo',
             title_en: titleEn,
             title_te: titleTe || titleEn,
             is_published: true,
-          });
+          }, "news");
           
           payload.image_url = mediaItem.url;
           console.log("Media uploaded successfully:", mediaItem);
@@ -190,8 +188,8 @@ export default function ContentPush() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-2xl font-semibold">Content Push</h1>
-        <p className="text-sm text-gray-500">Create and send content to members</p>
+        <h1 className="text-2xl font-semibold">Create News</h1>
+        <p className="text-sm text-gray-500">Create and publish news articles</p>
       </div>
 
       {/* Success Message */}
@@ -199,8 +197,8 @@ export default function ContentPush() {
         <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center gap-3">
           <CheckCircle className="w-5 h-5 text-green-600" />
           <div>
-            <div className="font-medium text-green-900">Content Sent Successfully!</div>
-            <div className="text-sm text-green-700">Your content has been pushed to {estimatedReach.toLocaleString()} members.</div>
+            <div className="font-medium text-green-900">News Published Successfully!</div>
+            <div className="text-sm text-green-700">Your news article has been published and is now visible to members.</div>
           </div>
         </div>
       )}
@@ -221,32 +219,6 @@ export default function ContentPush() {
           {/* Left: Form */}
           <div className="col-span-8 space-y-4">
             <div className="bg-white rounded-lg shadow-card p-4 space-y-4">
-            {/* Mode toggle */}
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setMode("news")}
-                className={clsx(
-                  "flex items-center gap-2 px-3 py-2 rounded-md border text-sm",
-                  mode === "news" ? "bg-gray-100 border-gray-300" : "hover:bg-gray-50"
-                )}
-              >
-                <Megaphone className="w-4 h-4" />
-                News/Update
-              </button>
-              <button
-                type="button"
-                onClick={() => setMode("push")}
-                className={clsx(
-                  "flex items-center gap-2 px-3 py-2 rounded-md border text-sm",
-                  mode === "push" ? "bg-gray-100 border-gray-300" : "hover:bg-gray-50"
-                )}
-              >
-                <Bell className="w-4 h-4" />
-                Push Notification
-              </button>
-            </div>
-
             {/* Title English */}
             <div>
               <label className="text-sm font-medium">Title (English) *</label>
@@ -395,7 +367,7 @@ export default function ContentPush() {
               ) : (
                 <>
                   <Megaphone className="w-4 h-4" />
-                  Send Content
+                  Publish News
                 </>
               )}
             </button>

@@ -76,10 +76,15 @@ export const mediaService = {
   },
 
   // Upload file and get URL
-  async uploadFile(file: File, type: 'photo' | 'video'): Promise<{ url: string; thumbnail_url?: string }> {
+  async uploadFile(file: File, type: 'photo' | 'video', folder?: string): Promise<{ url: string; thumbnail_url?: string }> {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('type', type);
+    
+    // Add folder if specified
+    if (folder) {
+      formData.append('folder', folder);
+    }
     
     // Get token from localStorage to ensure it's included
     const token = localStorage.getItem('token');
@@ -98,10 +103,10 @@ export const mediaService = {
   },
 
   // Upload media with file (combines upload + create)
-  async uploadMedia(file: File, data: Omit<CreateMediaRequest, 'url' | 'thumbnail_url'>): Promise<MediaItem> {
+  async uploadMedia(file: File, data: Omit<CreateMediaRequest, 'url' | 'thumbnail_url'>, folder?: string): Promise<MediaItem> {
     console.log('Upload media called with data:', data);
     // First upload the file
-    const uploadResult = await this.uploadFile(file, data.type);
+    const uploadResult = await this.uploadFile(file, data.type, folder);
     console.log('File upload result:', uploadResult);
     
     // Then create the media item with the uploaded URL
