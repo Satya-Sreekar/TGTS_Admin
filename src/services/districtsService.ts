@@ -60,6 +60,13 @@ export type MandalCreateData = {
   isActive?: boolean;
 };
 
+export type MandalUpdateData = {
+  name_en?: string;
+  name_te?: string;
+  description?: string;
+  isActive?: boolean;
+};
+
 export type MandalFilters = {
   district_id?: number;
   is_active?: boolean;
@@ -125,6 +132,12 @@ export const districtsService = {
   // Create mandal
   async createMandal(districtId: number, data: MandalCreateData): Promise<Mandal> {
     const response = await api.post(`/districts/${districtId}/mandals`, data);
+    return response.data;
+  },
+
+  // Update mandal
+  async updateMandal(mandalId: number, data: MandalUpdateData): Promise<Mandal> {
+    const response = await api.put(`/mandals/${mandalId}`, data);
     return response.data;
   },
 };

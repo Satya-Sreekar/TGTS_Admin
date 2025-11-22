@@ -30,6 +30,34 @@ export type ConstituencyUpdateData = {
   isActive?: boolean;
 };
 
+export type ConstituencyCreateData = {
+  constituencyNumber: number;
+  name_en: string;
+  name_te?: string;
+  state?: string;
+  description?: string;
+  isActive?: boolean;
+};
+
+export type AssemblyConstituencyCreateData = {
+  constituencyNumber: number;
+  name_en: string;
+  name_te?: string;
+  state?: string;
+  parliamentConstituencyId: number;
+  description?: string;
+  isActive?: boolean;
+};
+
+export type AssemblyConstituencyUpdateData = {
+  name_en?: string;
+  name_te?: string;
+  state?: string;
+  parliamentConstituencyId?: number;
+  description?: string;
+  isActive?: boolean;
+};
+
 export const constituencyService = {
   // Get all parliamentary constituencies
   async getConstituencies(filters: ConstituencyFilters = {}): Promise<ParliamentaryConstituency[]> {
@@ -52,6 +80,24 @@ export const constituencyService = {
   // Update constituency
   async updateConstituency(constituencyId: number, data: ConstituencyUpdateData): Promise<ParliamentaryConstituency> {
     const response = await api.put(`/constituencies/${constituencyId}`, data);
+    return response.data;
+  },
+
+  // Create constituency
+  async createConstituency(data: ConstituencyCreateData): Promise<ParliamentaryConstituency> {
+    const response = await api.post('/constituencies/', data);
+    return response.data;
+  },
+
+  // Create assembly constituency
+  async createAssemblyConstituency(data: AssemblyConstituencyCreateData): Promise<any> {
+    const response = await api.post('/assembly-constituencies/', data);
+    return response.data;
+  },
+
+  // Update assembly constituency
+  async updateAssemblyConstituency(constituencyId: number, data: AssemblyConstituencyUpdateData): Promise<any> {
+    const response = await api.put(`/assembly-constituencies/${constituencyId}`, data);
     return response.data;
   },
 

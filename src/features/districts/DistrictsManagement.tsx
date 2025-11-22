@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Search, Edit2, Save, X, CheckCircle2, ChevronDown, ChevronRight, Plus } from "lucide-react";
 import clsx from "clsx";
 import { districtsService } from "../../services/districtsService";
-import type { District, DistrictUpdateData, DistrictCreateData, Mandal, MandalCreateData } from "../../services/districtsService";
+import type { District, DistrictUpdateData, DistrictCreateData, Mandal, MandalCreateData, MandalUpdateData } from "../../services/districtsService";
 import { translationService } from "../../services/translationService";
 
 export default function DistrictsManagement() {
@@ -39,10 +39,17 @@ export default function DistrictsManagement() {
     isActive: true,
   });
 
+  // State for editing mandals
+  const [editingMandalId, setEditingMandalId] = useState<number | null>(null);
+  const [editingMandalDistrictId, setEditingMandalDistrictId] = useState<number | null>(null);
+  const [editMandalData, setEditMandalData] = useState<MandalUpdateData>({});
+  const [savingMandal, setSavingMandal] = useState(false);
+
   // Track if Telugu fields were manually edited
   const districtNameTeManualEdit = useRef(false);
   const editDistrictNameTeManualEdit = useRef(false);
   const mandalNameTeManualEdit = useRef(false);
+  const editMandalNameTeManualEdit = useRef(false);
 
   useEffect(() => {
     fetchDistricts();
@@ -93,7 +100,7 @@ export default function DistrictsManagement() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editData.name_en, editingId]);
 
-  // Auto-translate Mandal Name English to Telugu
+  // Auto-translate Mandal Name English to Telugu (add form)
   useEffect(() => {
     if (!newMandal.name_en || mandalNameTeManualEdit.current) {
       return;
@@ -114,6 +121,29 @@ export default function DistrictsManagement() {
       }
     });
   }, [newMandal.name_en]);
+
+  // Auto-translate Mandal Name English to Telugu (edit form)
+  useEffect(() => {
+    if (!editMandalData.name_en || editMandalNameTeManualEdit.current || editingMandalId === null) {
+      return;
+    }
+    
+    const debouncedTranslate = translationService.createDebouncedTranslator(800);
+    const currentNameEn = editMandalData.name_en;
+    
+    debouncedTranslate(currentNameEn, (translated) => {
+      if (!editMandalNameTeManualEdit.current && editingMandalId !== null) {
+        setEditMandalData((prev) => {
+          // Only update if English hasn't changed since translation started
+          if (prev.name_en === currentNameEn) {
+            return { ...prev, name_te: translated };
+          }
+          return prev;
+        });
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editMandalData.name_en, editingMandalId]);
 
   const fetchDistricts = async () => {
     setLoading(true);
@@ -264,6 +294,56 @@ export default function DistrictsManagement() {
       console.error('Failed to create mandal:', err);
     } finally {
       setAddingMandalForDistrict(null);
+    }
+  };
+
+  const handleEditMandal = (mandal: Mandal, districtId: number) => {
+    setEditingMandalId(mandal.id);
+    setEditingMandalDistrictId(districtId);
+    setEditMandalData({
+      name_en: mandal.name_en,
+      name_te: mandal.name_te || mandal.name_en,
+      description: mandal.description || '',
+      isActive: mandal.isActive,
+    });
+    setError(null);
+    setSuccess(null);
+    editMandalNameTeManualEdit.current = false; // Reset manual edit flag
+  };
+
+  const handleCancelMandalEdit = () => {
+    setEditingMandalId(null);
+    setEditingMandalDistrictId(null);
+    setEditMandalData({});
+    setError(null);
+    setSuccess(null);
+    editMandalNameTeManualEdit.current = false; // Reset manual edit flag
+  };
+
+  const handleSaveMandal = async () => {
+    if (!editingMandalId || editingMandalDistrictId === null) return;
+
+    setSavingMandal(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      const updated = await districtsService.updateMandal(editingMandalId, editMandalData);
+      // Update mandals data for this district
+      const currentMandals = mandalsData[editingMandalDistrictId] || [];
+      setMandalsData({
+        ...mandalsData,
+        [editingMandalDistrictId]: currentMandals.map(m => m.id === editingMandalId ? updated : m).sort((a, b) => a.name_en.localeCompare(b.name_en)),
+      });
+      setEditingMandalId(null);
+      setEditingMandalDistrictId(null);
+      setEditMandalData({});
+      setSuccess('Mandal updated successfully');
+      setTimeout(() => setSuccess(null), 3000);
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Failed to update mandal');
+      console.error('Failed to update mandal:', err);
+    } finally {
+      setSavingMandal(false);
     }
   };
 
@@ -462,21 +542,73 @@ export default function DistrictsManagement() {
                                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-4">
                                             {mandalsData[district.id].map((mandal: Mandal) => (
                                                 <div key={mandal.id} className="bg-white p-3 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
-                                                    <div className="flex justify-between items-start gap-2">
-                                                        <div className="min-w-0">
-                                                            <div className="font-medium text-gray-900 truncate" title={typeof mandal.name === 'object' ? mandal.name?.en : mandal.name_en}>
-                                                                {typeof mandal.name === 'object' ? mandal.name?.en : mandal.name_en}
+                                                    {editingMandalId === mandal.id && editingMandalDistrictId === district.id ? (
+                                                        <div className="space-y-2">
+                                                            <div>
+                                                                <label className="block text-xs font-medium text-gray-700 mb-1">Name (English) *</label>
+                                                                <input
+                                                                    type="text"
+                                                                    value={editMandalData.name_en || ''}
+                                                                    onChange={(e) => setEditMandalData({ ...editMandalData, name_en: e.target.value })}
+                                                                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                                                                />
                                                             </div>
-                                                            {(mandal.name_te || mandal.name?.te) && (
-                                                                <div className="text-xs text-gray-500 truncate" title={mandal.name_te || mandal.name?.te}>
-                                                                    {mandal.name_te || mandal.name?.te}
+                                                            <div>
+                                                                <label className="block text-xs font-medium text-gray-700 mb-1">Name (Telugu)</label>
+                                                                <input
+                                                                    type="text"
+                                                                    value={editMandalData.name_te || ''}
+                                                                    onChange={(e) => {
+                                                                      setEditMandalData({ ...editMandalData, name_te: e.target.value });
+                                                                      editMandalNameTeManualEdit.current = true;
+                                                                    }}
+                                                                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                                                                    placeholder="Auto-translated"
+                                                                />
+                                                            </div>
+                                                            <div className="flex items-center gap-2">
+                                                                <button
+                                                                    onClick={handleSaveMandal}
+                                                                    disabled={savingMandal}
+                                                                    className="flex-1 px-2 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700 transition disabled:opacity-50"
+                                                                >
+                                                                    <Save className="w-3 h-3 inline" />
+                                                                </button>
+                                                                <button
+                                                                    onClick={handleCancelMandalEdit}
+                                                                    disabled={savingMandal}
+                                                                    className="flex-1 px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 transition disabled:opacity-50"
+                                                                >
+                                                                    <X className="w-3 h-3 inline" />
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="flex justify-between items-start gap-2">
+                                                            <div className="min-w-0 flex-1">
+                                                                <div className="font-medium text-gray-900 truncate" title={typeof mandal.name === 'object' ? mandal.name?.en : mandal.name_en}>
+                                                                    {typeof mandal.name === 'object' ? mandal.name?.en : mandal.name_en}
                                                                 </div>
-                                                            )}
+                                                                {(mandal.name_te || mandal.name?.te) && (
+                                                                    <div className="text-xs text-gray-500 truncate" title={mandal.name_te || mandal.name?.te}>
+                                                                        {mandal.name_te || mandal.name?.te}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                            <div className="flex items-center gap-1">
+                                                                <div className="flex-shrink-0 text-xs font-mono bg-gray-100 px-2 py-1 rounded text-gray-600 border border-gray-200">
+                                                                    {mandal.id}
+                                                                </div>
+                                                                <button
+                                                                    onClick={() => handleEditMandal(mandal, district.id)}
+                                                                    className="p-1 text-blue-600 hover:bg-blue-50 rounded transition"
+                                                                    title="Edit"
+                                                                >
+                                                                    <Edit2 className="w-3 h-3" />
+                                                                </button>
+                                                            </div>
                                                         </div>
-                                                        <div className="flex-shrink-0 text-xs font-mono bg-gray-100 px-2 py-1 rounded text-gray-600 border border-gray-200">
-                                                            {mandal.id}
-                                                        </div>
-                                                    </div>
+                                                    )}
                                                 </div>
                                             ))}
                                         </div>
