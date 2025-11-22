@@ -46,6 +46,47 @@ export type SystemHealth = {
   timestamp: string;
 };
 
+export type NewsItem = {
+  id: string;
+  title: {
+    en: string;
+    te: string;
+  };
+  description: {
+    en: string;
+    te: string;
+  };
+  image?: string;
+  category: string;
+  date: string;
+  isPublished: boolean;
+  districtIds?: number[];
+  mandalIds?: number[];
+  assemblyConstituencyIds?: number[];
+  parliamentaryConstituencyIds?: number[];
+};
+
+export type NewsListResponse = {
+  news: NewsItem[];
+  total: number;
+  pages: number;
+  current_page: number;
+};
+
+export type NewsUpdateRequest = {
+  title_en?: string;
+  title_te?: string;
+  description_en?: string;
+  description_te?: string;
+  image_url?: string;
+  category?: string;
+  is_published?: boolean;
+  districtIds?: number[];
+  mandalIds?: number[];
+  assemblyConstituencyIds?: number[];
+  parliamentaryConstituencyIds?: number[];
+};
+
 export const adminService = {
   // Get dashboard statistics
   async getDashboardStats(): Promise<DashboardStats> {
@@ -69,6 +110,29 @@ export const adminService = {
   async getSystemHealth(): Promise<SystemHealth> {
     const response = await api.get('/admin/system-health');
     return response.data;
+  },
+
+  // Get all news items (admin only)
+  async getAllNews(params?: { page?: number; per_page?: number; category?: string; published_only?: boolean }): Promise<NewsListResponse> {
+    const response = await api.get('/news/admin/all', { params });
+    return response.data;
+  },
+
+  // Get single news item
+  async getNewsItem(newsId: string): Promise<NewsItem> {
+    const response = await api.get(`/news/${newsId}`);
+    return response.data;
+  },
+
+  // Update news item
+  async updateNewsItem(newsId: string, data: NewsUpdateRequest): Promise<NewsItem> {
+    const response = await api.put(`/news/${newsId}`, data);
+    return response.data;
+  },
+
+  // Delete news item
+  async deleteNewsItem(newsId: string): Promise<void> {
+    await api.delete(`/news/${newsId}`);
   },
 };
 
