@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { Check, ChevronDown } from 'lucide-react';
 import { districtsService, type District, type Mandal } from '../services/districtsService';
 import { constituencyService, type ParliamentaryConstituency } from '../services/constituencyService';
@@ -49,6 +49,8 @@ export default function GeographicAccessSelector({
   const mandalRef = useRef<HTMLDivElement>(null);
   const parliamentaryRef = useRef<HTMLDivElement>(null);
   const assemblyRef = useRef<HTMLDivElement>(null);
+  const assemblyRequestAbortController = useRef<AbortController | null>(null);
+  const assemblyRequestInProgress = useRef(false);
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -135,19 +137,44 @@ export default function GeographicAccessSelector({
     loadParliamentaryConstituencies();
   }, []);
 
+  // Create a stable string representation of parliamentary constituency IDs for dependency comparison
+  const parliamentaryConstituencyIdsKey = useMemo(() => {
+    return JSON.stringify([...value.parliamentaryConstituencyIds].sort((a, b) => a - b));
+  }, [value.parliamentaryConstituencyIds]);
+
   // Load assembly constituencies when parliamentary constituencies are selected
   useEffect(() => {
+    // Cancel any in-flight request
+    if (assemblyRequestAbortController.current) {
+      assemblyRequestAbortController.current.abort();
+      assemblyRequestAbortController.current = null;
+    }
+
     const loadAssemblyConstituencies = async () => {
-      if (value.parliamentaryConstituencyIds.length === 0) {
+      const parliamentIds = JSON.parse(parliamentaryConstituencyIdsKey);
+      
+      if (parliamentIds.length === 0) {
         setAssemblyConstituencies([]);
         return;
       }
       
+      // Mark request as in progress
+      assemblyRequestInProgress.current = true;
       setLoadingAssembly(true);
+      
+      // Create abort controller for this request
+      const abortController = new AbortController();
+      assemblyRequestAbortController.current = abortController;
+      
       try {
         // Fetch assembly constituencies for all selected parliamentary constituencies
         const allAssembly: AssemblyConstituency[] = [];
-        for (const parliamentId of value.parliamentaryConstituencyIds) {
+        for (const parliamentId of parliamentIds) {
+          // Check if request was aborted
+          if (abortController.signal.aborted) {
+            return;
+          }
+          
           const assemblyForParliament = await constituencyService.getAssemblyConstituencies({
             parliamentary_constituency_id: parliamentId,
             state: 'Telangana',
@@ -155,19 +182,44 @@ export default function GeographicAccessSelector({
           });
           allAssembly.push(...assemblyForParliament);
         }
+        
+        // Check if request was aborted before setting state
+        if (abortController.signal.aborted) {
+          return;
+        }
+        
         // Remove duplicates
         const uniqueAssembly = Array.from(
           new Map(allAssembly.map(a => [a.id || a.constituencyNumber, a])).values()
         );
         setAssemblyConstituencies(uniqueAssembly);
-      } catch (error) {
-        console.error('Failed to load assembly constituencies:', error);
+      } catch (error: any) {
+        // Don't log error if request was aborted
+        if (error.name !== 'AbortError' && !abortController.signal.aborted) {
+          console.error('Failed to load assembly constituencies:', error);
+        }
       } finally {
-        setLoadingAssembly(false);
+        if (!abortController.signal.aborted) {
+          setLoadingAssembly(false);
+        }
+        assemblyRequestInProgress.current = false;
+        if (assemblyRequestAbortController.current === abortController) {
+          assemblyRequestAbortController.current = null;
+        }
       }
     };
+    
     loadAssemblyConstituencies();
-  }, [value.parliamentaryConstituencyIds]);
+    
+    // Cleanup function to abort request if component unmounts or effect re-runs
+    return () => {
+      if (assemblyRequestAbortController.current) {
+        assemblyRequestAbortController.current.abort();
+        assemblyRequestAbortController.current = null;
+      }
+      assemblyRequestInProgress.current = false;
+    };
+  }, [parliamentaryConstituencyIdsKey]);
 
   const handlePostToAllToggle = (checked: boolean) => {
     if (checked) {
