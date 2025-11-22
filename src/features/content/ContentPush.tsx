@@ -7,12 +7,10 @@ import { translationService } from "../../services/translationService";
 import GeographicAccessSelector, { type GeographicAccessData } from "../../components/GeographicAccessSelector";
 
 const audienceTypes = ["All Members", "Cadre Only", "Public"] as const;
-const regions = ["Hyderabad", "Warangal", "Nizamabad", "Karimnagar", "Khammam", "Nalgonda"] as const;
 
 export default function ContentPush() {
   const [mode, setMode] = useState<"news" | "push">("news");
   const [audience, setAudience] = useState<(typeof audienceTypes)[number]>("All Members");
-  const [selectedRegions, setSelectedRegions] = useState<string[]>([]);
   const [titleEn, setTitleEn] = useState("");
   const [titleTe, setTitleTe] = useState("");
   const [descEn, setDescEn] = useState("");
@@ -82,9 +80,6 @@ export default function ContentPush() {
     }
   }, [imageFile]);
 
-  const toggleRegion = (r: string) =>
-    setSelectedRegions((prev) => (prev.includes(r) ? prev.filter((x) => x !== r) : [...prev, r]));
-
   // Remove uploaded image
   const removeImage = () => {
     setImageFile(null);
@@ -126,7 +121,6 @@ export default function ContentPush() {
         message: descEn || titleEn,
         description_te: descTe.trim() || descEn || titleEn, // Use English as fallback
         target_roles: getRolesFromAudience(),
-        target_regions: selectedRegions.length > 0 ? selectedRegions : undefined,
         content_type: mode === "news" ? "news" : "notification",
         category: "announcement",
         // Add geographic access fields
@@ -172,7 +166,6 @@ export default function ContentPush() {
         setFileName("");
         setImageFile(null);
         setImagePreview(null);
-        setSelectedRegions([]);
         setGeographicAccess({
           districtIds: [],
           mandalIds: [],
@@ -431,24 +424,6 @@ export default function ContentPush() {
                   ))}
                 </select>
                 <span className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none">▾</span>
-              </div>
-            </div>
-
-            {/* Regions */}
-            <div className="space-y-2">
-              <div className="text-sm text-gray-600">Select Regions</div>
-              <div className="space-y-2">
-                {regions.map((r) => (
-                  <label key={r} className="flex items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      className="rounded border-gray-300"
-                      checked={selectedRegions.includes(r)}
-                      onChange={() => toggleRegion(r)}
-                    />
-                    {r}
-                  </label>
-                ))}
               </div>
             </div>
           </div>

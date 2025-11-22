@@ -1,17 +1,16 @@
 import { NavLink } from "react-router-dom";
-import { Home, Users, Megaphone, CalendarDays, BarChart3, Upload, LogOut, Languages, Image, X, MapPin, Map } from "lucide-react";
+import { Home, Users, Megaphone, CalendarDays, Upload, Languages, Image, X, MapPin, Map } from "lucide-react";
 import { useState } from "react";
 
 const nav = [
   { to: "/", label: "Dashboard", icon: Home },
   { to: "/users", label: "User Management", icon: Users },
-  { to: "/content", label: "Content Push", icon: Megaphone },
+  { to: "/content", label: "News", icon: Megaphone },
   { to: "/events", label: "Event Management", icon: CalendarDays },
   { to: "/media", label: "Media Gallery", icon: Image },
+  { to: "/uploads", label: "Upload Documents", icon: Upload },
   { to: "/constituencies", label: "Constituencies", icon: MapPin },
-  { to: "/districts", label: "Districts & Mandals", icon: Map },
-  { to: "/analytics", label: "Analytics", icon: BarChart3 },
-  { to: "/uploads", label: "Upload Documents", icon: Upload }
+  { to: "/districts", label: "Districts & Mandals", icon: Map }
 ];
 
 interface SidebarProps {
@@ -90,10 +89,6 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
           >
             <Languages className="w-5 h-5" />
             <span className="text-sm">{language === "en" ? "తెలుగు" : "English"}</span>
-          </button>
-          <button className="flex items-center gap-2 w-full px-3 py-2 rounded-md bg-gray-200/40 hover:bg-gray-200/60 transition text-gray-900">
-            <LogOut className="w-5 h-5" />
-            <span className="text-sm">Logout</span>
           </button>
         </div>
       </aside>

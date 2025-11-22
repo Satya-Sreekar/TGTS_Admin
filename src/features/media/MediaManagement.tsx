@@ -335,6 +335,13 @@ export default function MediaManagement() {
           setError('Please select a video file');
           return;
         }
+        // Validate video file size (1GB max)
+        const maxSize = 1024 * 1024 * 1024; // 1GB
+        if (file.size > maxSize) {
+          setError(`Video file is too large. Maximum file size is 1GB. Your file is ${(file.size / (1024 * 1024 * 1024)).toFixed(2)}GB.`);
+          e.target.value = '';
+          return;
+        }
       }
       setSelectedFile(file);
       setError(null);

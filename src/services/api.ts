@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // API Configuration
 // Production mode - always use production API
-const USE_PRODUCTION = true;
+const USE_PRODUCTION = false;
 
 // Production API URL
 const PRODUCTION_URL = 'https://apitgts.codeology.solutions/api';
