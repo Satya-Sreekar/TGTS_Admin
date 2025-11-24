@@ -20,6 +20,7 @@ export type Event = {
   image?: string;
   rsvpCount: number;
   isPublished: boolean;
+  accessLevel?: string;  // 'public', 'cadre', or 'admin'
   districtIds?: number[];
   mandalIds?: number[];
   assemblyConstituencyIds?: number[];
@@ -50,8 +51,9 @@ export type CreateEventRequest = {
   event_time: string;
   location_en: string;
   location_te: string;
-  image_url?: string;
+  image_url?: string | null; // null to clear image, undefined to omit
   is_published?: boolean;
+  access_level?: string;  // 'public', 'cadre', or 'admin'
   districtIds?: number[];
   mandalIds?: number[];
   assemblyConstituencyIds?: number[];
@@ -117,6 +119,27 @@ export const eventService = {
   // Get attendees/RSVPs for an event (admin only)
   async getEventAttendees(eventId: string): Promise<AttendeesResponse> {
     const response = await api.get(`/events/${eventId}/rsvp`);
+    return response.data;
+  },
+
+  // Upload event image (admin/cadre only)
+  async uploadEventImage(file: File): Promise<{ url: string; filename: string; message: string }> {
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    // Get token from localStorage to ensure it's included
+    const token = localStorage.getItem('token');
+    const headers: Record<string, string> = {};
+    
+    // Add Authorization header if token exists
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    
+    // Don't set Content-Type manually - let axios set it with boundary for FormData
+    const response = await api.post('/events/upload-image', formData, {
+      headers,
+    });
     return response.data;
   },
 };

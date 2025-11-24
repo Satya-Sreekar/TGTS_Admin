@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import Calendar from "react-calendar";
 import "react-calendar/dist/Calendar.css";
-import { CalendarDays, Clock, MapPin, Pencil, Trash2, Plus, List, Calendar as CalendarIcon, Loader2, AlertCircle, X, Users } from "lucide-react";
+import { CalendarDays, Clock, MapPin, Pencil, Trash2, Plus, List, Calendar as CalendarIcon, Loader2, AlertCircle, X, Users, UploadCloud, CheckCircle } from "lucide-react";
 import { eventService } from "../../services/eventService";
 import type { Event, CreateEventRequest, AttendeesResponse } from "../../services/eventService";
 import { translationService } from "../../services/translationService";
@@ -40,30 +40,30 @@ function combineEventDateTime(dateStr: string, timeStr: string): Date | null {
     // Parse the time string (format: "HH:MM" or "HH:MM AM/PM")
     let hours = 0;
     let minutes = 0;
-    
+
     // Handle 12-hour format with AM/PM
     const timeLower = timeStr.toLowerCase().trim();
     const isPM = timeLower.includes('pm');
     const isAM = timeLower.includes('am');
-    
+
     // Extract numeric part
     const timeMatch = timeStr.match(/(\d{1,2}):(\d{2})/);
     if (!timeMatch) return dateObj; // If time parsing fails, return date only
-    
+
     hours = parseInt(timeMatch[1], 10);
     minutes = parseInt(timeMatch[2], 10);
-    
+
     // Convert 12-hour to 24-hour format
     if (isPM && hours !== 12) {
       hours += 12;
     } else if (isAM && hours === 12) {
       hours = 0;
     }
-    
+
     // Create new date with the time
     const combinedDate = new Date(dateObj);
     combinedDate.setHours(hours, minutes, 0, 0);
-    
+
     return combinedDate;
   } catch {
     return parseEventDate(dateStr); // Fallback to date only
@@ -178,19 +178,21 @@ export default function EventManagement() {
   const [events, setEvents] = useState<EventItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+
   // Create event dialog state
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
-  
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editingEventId, setEditingEventId] = useState<string | null>(null);
+
   // Attendees dialog state
   const [showAttendeesDialog, setShowAttendeesDialog] = useState(false);
   const [attendees, setAttendees] = useState<AttendeesResponse | null>(null);
   const [loadingAttendees, setLoadingAttendees] = useState(false);
   const [attendeesError, setAttendeesError] = useState<string | null>(null);
   const [, setSelectedEventId] = useState<string | null>(null);
-  
+
   // Form fields
   const [titleEn, setTitleEn] = useState("");
   const [titleTe, setTitleTe] = useState("");
@@ -200,8 +202,12 @@ export default function EventManagement() {
   const [eventTime, setEventTime] = useState("");
   const [locationEn, setLocationEn] = useState("");
   const [locationTe, setLocationTe] = useState("");
-  const [imageUrl, setImageUrl] = useState("");
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [fileName, setFileName] = useState<string>("");
+  const [imageRemoved, setImageRemoved] = useState(false);
   const [isPublished, setIsPublished] = useState(true);
+  const [accessLevel, setAccessLevel] = useState("public");
   const [geographicAccess, setGeographicAccess] = useState<GeographicAccessData>({
     districtIds: [],
     mandalIds: [],
@@ -215,15 +221,28 @@ export default function EventManagement() {
   const descriptionTeManualEdit = useRef(false);
   const locationTeManualEdit = useRef(false);
 
+  // Create and cleanup image preview URL
+  useEffect(() => {
+    if (imageFile) {
+      const objectUrl = URL.createObjectURL(imageFile);
+      setImagePreview(objectUrl);
+
+      // Cleanup function to revoke the object URL
+      return () => URL.revokeObjectURL(objectUrl);
+    } else {
+      setImagePreview(null);
+    }
+  }, [imageFile]);
+
   // Auto-translate Title English to Telugu
   useEffect(() => {
     if (!titleEn || titleTeManualEdit.current) {
       return;
     }
-    
+
     const debouncedTranslate = translationService.createDebouncedTranslator(800);
     const currentTitleEn = titleEn;
-    
+
     debouncedTranslate(currentTitleEn, (translated) => {
       if (!titleTeManualEdit.current) {
         setTitleTe(translated);
@@ -236,10 +255,10 @@ export default function EventManagement() {
     if (!descriptionEn || descriptionTeManualEdit.current) {
       return;
     }
-    
+
     const debouncedTranslate = translationService.createDebouncedTranslator(800);
     const currentDescEn = descriptionEn;
-    
+
     debouncedTranslate(currentDescEn, (translated) => {
       if (!descriptionTeManualEdit.current) {
         setDescriptionTe(translated);
@@ -252,10 +271,10 @@ export default function EventManagement() {
     if (!locationEn || locationTeManualEdit.current) {
       return;
     }
-    
+
     const debouncedTranslate = translationService.createDebouncedTranslator(800);
     const currentLocationEn = locationEn;
-    
+
     debouncedTranslate(currentLocationEn, (translated) => {
       if (!locationTeManualEdit.current) {
         setLocationTe(translated);
@@ -270,7 +289,7 @@ export default function EventManagement() {
         setLoading(true);
         setError(null);
         const response = await eventService.getEvents({ per_page: 100, published_only: false });
-        
+
         const eventItems = response.events
           .map(convertEventToItem)
           .filter((item): item is EventItem => item !== null);
@@ -345,7 +364,7 @@ export default function EventManagement() {
 
   const handleDelete = async (eventId: string) => {
     if (!confirm("Are you sure you want to delete this event?")) return;
-    
+
     try {
       await eventService.deleteEvent(eventId);
       setEvents(events.filter((e) => e.id !== eventId));
@@ -395,6 +414,59 @@ export default function EventManagement() {
     }
   };
 
+  const handleEdit = (eventId: string) => {
+    // Find the event to edit
+    const eventToEdit = events.find((e) => e.id === eventId);
+    if (!eventToEdit) return;
+
+    // Find the full event data from API (we need the bilingual fields)
+    eventService.getEventById(eventId).then((fullEvent) => {
+      // Populate form with event data
+      setTitleEn(fullEvent.title.en);
+      setTitleTe(fullEvent.title.te);
+      setDescriptionEn(fullEvent.description.en);
+      setDescriptionTe(fullEvent.description.te);
+
+      // Parse and format the date for the input
+      const dateObj = parseEventDate(fullEvent.date);
+      if (dateObj) {
+        setEventDate(formatISTDateString(dateObj));
+      }
+
+      setEventTime(fullEvent.time);
+      setLocationEn(fullEvent.location.en);
+      setLocationTe(fullEvent.location.te);
+      setImageFile(null);
+      setImagePreview(fullEvent.image || null);
+      setFileName("");
+      setImageRemoved(false);
+      setIsPublished(fullEvent.isPublished);
+      setAccessLevel(fullEvent.accessLevel || "public");
+
+      // Set geographic access
+      setGeographicAccess({
+        districtIds: fullEvent.districtIds || [],
+        mandalIds: fullEvent.mandalIds || [],
+        assemblyConstituencyIds: fullEvent.assemblyConstituencyIds || [],
+        parliamentaryConstituencyIds: fullEvent.parliamentaryConstituencyIds || [],
+        postToAll: !fullEvent.districtIds && !fullEvent.mandalIds && !fullEvent.assemblyConstituencyIds && !fullEvent.parliamentaryConstituencyIds,
+      });
+
+      // Set edit mode
+      setIsEditMode(true);
+      setEditingEventId(eventId);
+      setShowCreateDialog(true);
+
+      // Set manual edit flags to true to prevent auto-translation overwriting
+      titleTeManualEdit.current = true;
+      descriptionTeManualEdit.current = true;
+      locationTeManualEdit.current = true;
+    }).catch((err) => {
+      console.error("Failed to fetch event details:", err);
+      alert("Failed to load event details");
+    });
+  };
+
   const handleCreateEvent = async (e: React.FormEvent) => {
     e.preventDefault();
     setCreateError(null);
@@ -440,6 +512,25 @@ export default function EventManagement() {
       const dateObj = parseToIST(eventDate + 'T00:00:00');
       const isoDate = formatISTISO(dateObj).split('T')[0];
 
+      // Handle image upload
+      let imageUrl: string | null | undefined = undefined;
+      if (imageFile) {
+        try {
+          const uploadResult = await eventService.uploadEventImage(imageFile);
+          imageUrl = uploadResult.url;
+        } catch (uploadErr: any) {
+          console.error("Image upload failed:", uploadErr);
+          setCreateError("Failed to upload image. Event will be created without image.");
+          // Continue without image
+        }
+      } else if (imageRemoved) {
+        // Image was removed - set to null to clear it (for updates)
+        imageUrl = null;
+      } else if (isEditMode && imagePreview && !imageFile) {
+        // Preserve existing image if no changes were made (edit mode)
+        imageUrl = imagePreview;
+      }
+
       const eventData: CreateEventRequest = {
         title_en: titleEn.trim(),
         title_te: titleTe.trim(),
@@ -449,18 +540,25 @@ export default function EventManagement() {
         event_time: eventTime.trim(),
         location_en: locationEn.trim(),
         location_te: locationTe.trim(),
-        image_url: imageUrl.trim() || undefined,
+        ...(imageUrl !== undefined && { image_url: imageUrl }),
         is_published: isPublished,
+        access_level: accessLevel,
         districtIds: geographicAccess.postToAll ? undefined : (geographicAccess.districtIds.length > 0 ? geographicAccess.districtIds : undefined),
         mandalIds: geographicAccess.postToAll ? undefined : (geographicAccess.mandalIds.length > 0 ? geographicAccess.mandalIds : undefined),
         assemblyConstituencyIds: geographicAccess.postToAll ? undefined : (geographicAccess.assemblyConstituencyIds.length > 0 ? geographicAccess.assemblyConstituencyIds : undefined),
         parliamentaryConstituencyIds: geographicAccess.postToAll ? undefined : (geographicAccess.parliamentaryConstituencyIds.length > 0 ? geographicAccess.parliamentaryConstituencyIds : undefined),
       };
 
-      await eventService.createEvent(eventData);
-      
+      if (isEditMode && editingEventId) {
+        // Update existing event
+        await eventService.updateEvent(editingEventId, eventData);
+      } else {
+        // Create new event
+        await eventService.createEvent(eventData);
+      }
+
       // Refresh events list to get the latest data
-      const response = await eventService.getEvents({ per_page: 100 });
+      const response = await eventService.getEvents({ per_page: 100, published_only: false });
       const eventItems = response.events
         .map(convertEventToItem)
         .filter((item): item is EventItem => item !== null);
@@ -470,8 +568,8 @@ export default function EventManagement() {
       resetCreateForm();
       setShowCreateDialog(false);
     } catch (err: any) {
-      console.error("Failed to create event:", err);
-      setCreateError(err.response?.data?.message || "Failed to create event. Please try again.");
+      console.error(`Failed to ${isEditMode ? 'update' : 'create'} event:`, err);
+      setCreateError(err.response?.data?.message || `Failed to ${isEditMode ? 'update' : 'create'} event. Please try again.`);
     } finally {
       setCreating(false);
     }
@@ -486,8 +584,12 @@ export default function EventManagement() {
     setEventTime("");
     setLocationEn("");
     setLocationTe("");
-    setImageUrl("");
+    setImageFile(null);
+    setImagePreview(null);
+    setFileName("");
+    setImageRemoved(false);
     setIsPublished(false);
+    setAccessLevel("public");
     setGeographicAccess({
       districtIds: [],
       mandalIds: [],
@@ -496,6 +598,8 @@ export default function EventManagement() {
       postToAll: true,
     });
     setCreateError(null);
+    setIsEditMode(false);
+    setEditingEventId(null);
     // Reset manual edit flags
     titleTeManualEdit.current = false;
     descriptionTeManualEdit.current = false;
@@ -543,22 +647,20 @@ export default function EventManagement() {
           <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
             <button
               onClick={() => setViewMode("list")}
-              className={`flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors ${
-                viewMode === "list"
-                  ? "bg-white text-orange-600 shadow-sm"
-                  : "text-gray-600 hover:text-gray-900"
-              }`}
+              className={`flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors ${viewMode === "list"
+                ? "bg-white text-orange-600 shadow-sm"
+                : "text-gray-600 hover:text-gray-900"
+                }`}
             >
               <List className="w-4 h-4" />
               List
             </button>
             <button
               onClick={() => setViewMode("calendar")}
-              className={`flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors ${
-                viewMode === "calendar"
-                  ? "bg-white text-orange-600 shadow-sm"
-                  : "text-gray-600 hover:text-gray-900"
-              }`}
+              className={`flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors ${viewMode === "calendar"
+                ? "bg-white text-orange-600 shadow-sm"
+                : "text-gray-600 hover:text-gray-900"
+                }`}
             >
               <CalendarIcon className="w-4 h-4" />
               Calendar
@@ -584,6 +686,7 @@ export default function EventManagement() {
                   <EventCard
                     key={e.id}
                     e={e}
+                    onEdit={() => handleEdit(e.id)}
                     onDelete={() => handleDelete(e.id)}
                     onShowAttendees={() => handleShowAttendees(e.id)}
                   />
@@ -599,6 +702,7 @@ export default function EventManagement() {
                   <EventCard
                     key={e.id}
                     e={e}
+                    onEdit={() => handleEdit(e.id)}
                     onDelete={() => handleDelete(e.id)}
                     onShowAttendees={() => handleShowAttendees(e.id)}
                   />
@@ -726,7 +830,7 @@ export default function EventManagement() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between">
-              <h2 className="text-xl font-semibold">Create New Event</h2>
+              <h2 className="text-xl font-semibold">{isEditMode ? "Edit Event" : "Create New Event"}</h2>
               <button
                 onClick={() => {
                   setShowCreateDialog(false);
@@ -865,15 +969,89 @@ export default function EventManagement() {
                 </div>
               </div>
 
-              {/* Image URL */}
+              {/* Image Upload */}
               <div>
-                <label className="text-sm font-medium">Image URL (Optional)</label>
+                <label className="text-sm font-medium">Event Image (Optional)</label>
+                
+                {imagePreview ? (
+                  <div className="mt-2 space-y-2">
+                    {/* Image Preview */}
+                    <div className="relative w-full max-w-md">
+                      <img
+                        src={imagePreview}
+                        alt="Event preview"
+                        className="w-full h-48 object-cover rounded-md border border-gray-200"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setImageFile(null);
+                          setImagePreview(null);
+                          setFileName("");
+                          setImageRemoved(true);
+                          const fileInput = document.getElementById('event-image') as HTMLInputElement;
+                          if (fileInput) fileInput.value = '';
+                        }}
+                        className="absolute top-2 right-2 p-1.5 rounded-md bg-red-600 text-white hover:bg-red-700"
+                        title="Remove image"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                    
+                    {/* Image Info */}
+                    {fileName && (
+                      <div className="flex items-center gap-2 bg-gray-50 p-3 rounded-md border border-gray-200">
+                        <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0" />
+                        <span className="text-sm text-gray-700 truncate">{fileName}</span>
+                      </div>
+                    )}
+                    
+                    {/* Change Image Button */}
+                    <label
+                      htmlFor="event-image"
+                      className="inline-flex items-center gap-2 px-3 py-2 text-sm rounded-md border border-gray-300 hover:bg-gray-50 cursor-pointer"
+                    >
+                      <UploadCloud className="w-4 h-4" />
+                      Change Image
+                    </label>
+                  </div>
+                ) : (
+                  <label
+                    htmlFor="event-image"
+                    className="mt-1 flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100"
+                  >
+                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                      <UploadCloud className="w-8 h-8 mb-2 text-gray-500" />
+                      <p className="mb-2 text-sm text-gray-500">
+                        <span className="font-semibold">Click to upload</span> or drag and drop
+                      </p>
+                      <p className="text-xs text-gray-500">PNG, JPG, WEBP (MAX. 5MB)</p>
+                    </div>
+                  </label>
+                )}
+                
                 <input
-                  type="url"
-                  className="mt-1 w-full px-3 py-2 rounded-md border bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-300"
-                  placeholder="https://example.com/image.jpg"
-                  value={imageUrl}
-                  onChange={(e) => setImageUrl(e.target.value)}
+                  id="event-image"
+                  type="file"
+                  accept="image/png, image/jpeg, image/jpg, image/webp"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) {
+                      if (f.size > 5 * 1024 * 1024) {
+                        setCreateError("Image size must be less than 5MB");
+                        e.target.value = '';
+                        return;
+                      }
+                      setFileName(f.name);
+                      setImageFile(f);
+                      setImageRemoved(false);
+                    } else {
+                      setFileName("");
+                      setImageFile(null);
+                    }
+                  }}
                 />
               </div>
 
@@ -889,6 +1067,23 @@ export default function EventManagement() {
                 <label htmlFor="isPublished" className="text-sm font-medium">
                   Publish immediately
                 </label>
+              </div>
+
+              {/* Access Level */}
+              <div>
+                <label className="text-sm font-medium">Access Level</label>
+                <select
+                  className="mt-1 w-full px-3 py-2 rounded-md border bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-300"
+                  value={accessLevel}
+                  onChange={(e) => setAccessLevel(e.target.value)}
+                >
+                  <option value="public">Public (All Users)</option>
+                  <option value="cadre">Cadre Only</option>
+                  <option value="admin">Admin Only</option>
+                </select>
+                <p className="mt-1 text-xs text-gray-500">
+                  Controls who can view this event in the mobile app
+                </p>
               </div>
 
               {/* Geographic Access Control */}
@@ -922,10 +1117,10 @@ export default function EventManagement() {
                   {creating ? (
                     <span className="flex items-center justify-center gap-2">
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      Creating...
+                      {isEditMode ? "Updating..." : "Creating..."}
                     </span>
                   ) : (
-                    "Create Event"
+                    isEditMode ? "Update Event" : "Create Event"
                   )}
                 </button>
               </div>

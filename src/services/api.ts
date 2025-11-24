@@ -101,17 +101,17 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       // Handle unauthorized - token expired or invalid
       console.warn('Unauthorized access - token expired or invalid. Auto-logging out...');
-      
+
       // Clear auth tokens
       localStorage.removeItem('token');
       localStorage.removeItem('user');
-      
+
       // Store logout reason in sessionStorage to show message on login page
       sessionStorage.setItem('logoutReason', 'token_expired');
-      
+
       // Dispatch custom event to notify AuthContext
       window.dispatchEvent(new CustomEvent('auth:logout', { detail: { reason: 'token_expired' } }));
-      
+
       // Only redirect if we're not already on login page
       if (window.location.pathname !== '/login') {
         // Use setTimeout to ensure state is cleared before redirect

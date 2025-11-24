@@ -254,18 +254,17 @@ export default function ContentPush() {
 
       // Handle image upload/removal
       if (editImageFile) {
-        // New image uploaded
+        // New image uploaded - just upload to S3, don't create MediaItem record
         try {
-          const mediaItem = await mediaService.uploadMedia(editImageFile, {
-            type: 'photo',
-            title_en: editTitleEn,
-            title_te: editTitleTe || editTitleEn,
-            is_published: true,
-          }, "news");
+          console.log("Uploading news image to S3:", editImageFile.name);
           
-          payload.image_url = mediaItem.url;
+          // Upload directly to S3 in 'news' folder - returns URL without creating MediaItem
+          const uploadResult = await mediaService.uploadFile(editImageFile, 'photo', "news");
+          
+          payload.image_url = uploadResult.url;
+          console.log("News image uploaded successfully:", uploadResult.url);
         } catch (uploadErr) {
-          console.error("Media upload failed:", uploadErr);
+          console.error("Image upload failed:", uploadErr);
           setError("Failed to upload image. News will be updated without new image.");
         }
       } else if (editImageRemoved) {
@@ -374,23 +373,18 @@ export default function ContentPush() {
         parliamentaryConstituencyIds: geographicAccess.postToAll ? undefined : (geographicAccess.parliamentaryConstituencyIds.length > 0 ? geographicAccess.parliamentaryConstituencyIds : undefined),
       };
 
-      // Handle image upload - create media item directly
+      // Handle image upload - just upload to S3, don't create MediaItem record
       if (imageFile) {
         try {
-          console.log("Uploading to Media Gallery:", imageFile.name);
+          console.log("Uploading news image to S3:", imageFile.name);
           
-          // Upload to media gallery with 'news' folder
-          const mediaItem = await mediaService.uploadMedia(imageFile, {
-            type: 'photo',
-            title_en: titleEn,
-            title_te: titleTe || titleEn,
-            is_published: true,
-          }, "news");
+          // Upload directly to S3 in 'news' folder - returns URL without creating MediaItem
+          const uploadResult = await mediaService.uploadFile(imageFile, 'photo', "news");
           
-          payload.image_url = mediaItem.url;
-          console.log("Media uploaded successfully:", mediaItem);
+          payload.image_url = uploadResult.url;
+          console.log("News image uploaded successfully:", uploadResult.url);
         } catch (uploadErr) {
-          console.error("Media upload failed:", uploadErr);
+          console.error("Image upload failed:", uploadErr);
           setError("Failed to upload image. Content will be pushed without image.");
           // Continue without image
         }
