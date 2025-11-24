@@ -36,6 +36,7 @@ export type ContentPushRequest = {
   content_id?: number;
   image_url?: string;
   category?: string;
+  links?: Array<{ platform: string; url: string }>;
 };
 
 export type SystemHealth = {
@@ -64,6 +65,7 @@ export type NewsItem = {
   mandalIds?: number[];
   assemblyConstituencyIds?: number[];
   parliamentaryConstituencyIds?: number[];
+  links?: Array<{ platform: string; url: string }>;
 };
 
 export type NewsListResponse = {
@@ -85,6 +87,7 @@ export type NewsUpdateRequest = {
   mandalIds?: number[];
   assemblyConstituencyIds?: number[];
   parliamentaryConstituencyIds?: number[];
+  links?: Array<{ platform: string; url: string }>;
 };
 
 export const adminService = {

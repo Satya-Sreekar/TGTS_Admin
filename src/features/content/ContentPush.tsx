@@ -8,6 +8,22 @@ import GeographicAccessSelector, { type GeographicAccessData } from "../../compo
 const audienceTypes = ["All Members", "Cadre Only", "Public"] as const;
 type ViewMode = "create" | "list";
 
+type LinkItem = {
+  platform: string;
+  url: string;
+};
+
+const socialMediaPlatforms = [
+  "Facebook",
+  "Twitter",
+  "Instagram",
+  "YouTube",
+  "LinkedIn",
+  "WhatsApp",
+  "Telegram",
+  "Other"
+] as const;
+
 export default function ContentPush() {
   const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [newsItems, setNewsItems] = useState<NewsItem[]>([]);
@@ -35,6 +51,7 @@ export default function ContentPush() {
     parliamentaryConstituencyIds: [],
     postToAll: true,
   });
+  const [links, setLinks] = useState<LinkItem[]>([{ platform: "Facebook", url: "" }]);
 
   // Edit form state
   const [editingNews, setEditingNews] = useState<NewsItem | null>(null);
@@ -54,6 +71,7 @@ export default function ContentPush() {
     parliamentaryConstituencyIds: [],
     postToAll: true,
   });
+  const [editLinks, setEditLinks] = useState<LinkItem[]>([{ platform: "Facebook", url: "" }]);
   const [updating, setUpdating] = useState(false);
   const [deletingNews, setDeletingNews] = useState<NewsItem | null>(null);
   const [processing, setProcessing] = useState<string | null>(null);
@@ -225,8 +243,46 @@ export default function ContentPush() {
       parliamentaryConstituencyIds: news.parliamentaryConstituencyIds || [],
       postToAll: !news.districtIds?.length && !news.mandalIds?.length && !news.assemblyConstituencyIds?.length && !news.parliamentaryConstituencyIds?.length,
     });
+    // Load links from news item
+    setEditLinks((news as any).links && Array.isArray((news as any).links) && (news as any).links.length > 0 
+      ? (news as any).links 
+      : [{ platform: "Facebook", url: "" }]);
     editTitleTeManualEdit.current = false;
     editDescTeManualEdit.current = false;
+  };
+
+  // Add a new link
+  const addLink = () => {
+    setLinks([...links, { platform: "Facebook", url: "" }]);
+  };
+
+  // Remove a link
+  const removeLink = (index: number) => {
+    setLinks(links.filter((_, i) => i !== index));
+  };
+
+  // Update a link
+  const updateLink = (index: number, field: keyof LinkItem, value: string) => {
+    const updatedLinks = [...links];
+    updatedLinks[index] = { ...updatedLinks[index], [field]: value };
+    setLinks(updatedLinks);
+  };
+
+  // Add a new edit link
+  const addEditLink = () => {
+    setEditLinks([...editLinks, { platform: "Facebook", url: "" }]);
+  };
+
+  // Remove an edit link
+  const removeEditLink = (index: number) => {
+    setEditLinks(editLinks.filter((_, i) => i !== index));
+  };
+
+  // Update an edit link
+  const updateEditLink = (index: number, field: keyof LinkItem, value: string) => {
+    const updatedLinks = [...editLinks];
+    updatedLinks[index] = { ...updatedLinks[index], [field]: value };
+    setEditLinks(updatedLinks);
   };
 
   // Handle update news
@@ -239,6 +295,9 @@ export default function ContentPush() {
     setSuccess(false);
 
     try {
+      // Prepare links - filter out empty ones
+      const validEditLinks = editLinks.filter(link => link.url && link.url.trim());
+
       const payload: any = {
         title_en: editTitleEn,
         title_te: editTitleTe.trim() || editTitleEn,
@@ -250,6 +309,8 @@ export default function ContentPush() {
         mandalIds: editGeographicAccess.postToAll ? undefined : (editGeographicAccess.mandalIds.length > 0 ? editGeographicAccess.mandalIds : undefined),
         assemblyConstituencyIds: editGeographicAccess.postToAll ? undefined : (editGeographicAccess.assemblyConstituencyIds.length > 0 ? editGeographicAccess.assemblyConstituencyIds : undefined),
         parliamentaryConstituencyIds: editGeographicAccess.postToAll ? undefined : (editGeographicAccess.parliamentaryConstituencyIds.length > 0 ? editGeographicAccess.parliamentaryConstituencyIds : undefined),
+        // Add links
+        links: validEditLinks.length > 0 ? validEditLinks : undefined,
       };
 
       // Handle image upload/removal
@@ -296,6 +357,7 @@ export default function ContentPush() {
           parliamentaryConstituencyIds: [],
           postToAll: true,
         });
+        setEditLinks([{ platform: "Facebook", url: "" }]);
         editTitleTeManualEdit.current = false;
         editDescTeManualEdit.current = false;
         setSuccess(false);
@@ -357,6 +419,9 @@ export default function ContentPush() {
     setLoading(true);
 
     try {
+      // Prepare links - filter out empty ones
+      const validLinks = links.filter(link => link.url && link.url.trim());
+
       // Prepare the payload
       const payload: any = {
         title: titleEn,
@@ -371,6 +436,8 @@ export default function ContentPush() {
         mandalIds: geographicAccess.postToAll ? undefined : (geographicAccess.mandalIds.length > 0 ? geographicAccess.mandalIds : undefined),
         assemblyConstituencyIds: geographicAccess.postToAll ? undefined : (geographicAccess.assemblyConstituencyIds.length > 0 ? geographicAccess.assemblyConstituencyIds : undefined),
         parliamentaryConstituencyIds: geographicAccess.postToAll ? undefined : (geographicAccess.parliamentaryConstituencyIds.length > 0 ? geographicAccess.parliamentaryConstituencyIds : undefined),
+        // Add links
+        links: validLinks.length > 0 ? validLinks : undefined,
       };
 
       // Handle image upload - just upload to S3, don't create MediaItem record
@@ -411,6 +478,7 @@ export default function ContentPush() {
           parliamentaryConstituencyIds: [],
           postToAll: true,
         });
+        setLinks([{ platform: "Facebook", url: "" }]);
         titleTeManualEdit.current = false;
         descTeManualEdit.current = false;
         setSuccess(false);
@@ -748,6 +816,55 @@ export default function ContentPush() {
                 }}
               />
             </div>
+
+            {/* Links Section */}
+            <div>
+              <label className="text-sm font-medium">Social Media & External Links</label>
+              <div className="mt-2 space-y-3">
+                {links.map((link, index) => (
+                  <div key={index} className="flex gap-2 items-start">
+                    <div className="flex-1">
+                      <select
+                        className="w-full px-3 py-2 rounded-md border bg-white text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300 mb-2"
+                        value={link.platform}
+                        onChange={(e) => updateLink(index, 'platform', e.target.value)}
+                      >
+                        {socialMediaPlatforms.map((platform) => (
+                          <option key={platform} value={platform}>
+                            {platform}
+                          </option>
+                        ))}
+                      </select>
+                      <input
+                        type="url"
+                        className="w-full px-3 py-2 rounded-md border bg-white text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300"
+                        placeholder={link.platform === "Other" ? "Enter URL" : `Enter ${link.platform} URL`}
+                        value={link.url}
+                        onChange={(e) => updateLink(index, 'url', e.target.value)}
+                      />
+                    </div>
+                    {links.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeLink(index)}
+                        className="mt-7 p-2 text-red-600 hover:bg-red-50 rounded-md"
+                        title="Remove link"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={addLink}
+                  className="flex items-center gap-2 px-3 py-2 text-sm rounded-md border border-gray-300 hover:bg-gray-50 text-gray-700"
+                >
+                  <Plus className="w-4 h-4" />
+                  Add Another Link
+                </button>
+              </div>
+            </div>
           </div>
 
           {/* Submit */}
@@ -844,6 +961,7 @@ export default function ContentPush() {
                     parliamentaryConstituencyIds: [],
                     postToAll: true,
                   });
+                  setEditLinks([{ platform: "Facebook", url: "" }]);
                   editTitleTeManualEdit.current = false;
                   editDescTeManualEdit.current = false;
                 }}
@@ -993,6 +1111,55 @@ export default function ContentPush() {
                         }}
                       />
                     </div>
+
+                    {/* Links Section */}
+                    <div>
+                      <label className="text-sm font-medium">Social Media & External Links</label>
+                      <div className="mt-2 space-y-3">
+                        {editLinks.map((link, index) => (
+                          <div key={index} className="flex gap-2 items-start">
+                            <div className="flex-1">
+                              <select
+                                className="w-full px-3 py-2 rounded-md border bg-white text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300 mb-2"
+                                value={link.platform}
+                                onChange={(e) => updateEditLink(index, 'platform', e.target.value)}
+                              >
+                                {socialMediaPlatforms.map((platform) => (
+                                  <option key={platform} value={platform}>
+                                    {platform}
+                                  </option>
+                                ))}
+                              </select>
+                              <input
+                                type="url"
+                                className="w-full px-3 py-2 rounded-md border bg-white text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300"
+                                placeholder={link.platform === "Other" ? "Enter URL" : `Enter ${link.platform} URL`}
+                                value={link.url}
+                                onChange={(e) => updateEditLink(index, 'url', e.target.value)}
+                              />
+                            </div>
+                            {editLinks.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => removeEditLink(index)}
+                                className="mt-7 p-2 text-red-600 hover:bg-red-50 rounded-md"
+                                title="Remove link"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                        <button
+                          type="button"
+                          onClick={addEditLink}
+                          className="flex items-center gap-2 px-3 py-2 text-sm rounded-md border border-gray-300 hover:bg-gray-50 text-gray-700"
+                        >
+                          <Plus className="w-4 h-4" />
+                          Add Another Link
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
@@ -1045,6 +1212,7 @@ export default function ContentPush() {
                       parliamentaryConstituencyIds: [],
                       postToAll: true,
                     });
+                    setEditLinks([{ platform: "Facebook", url: "" }]);
                     editTitleTeManualEdit.current = false;
                     editDescTeManualEdit.current = false;
                   }}
