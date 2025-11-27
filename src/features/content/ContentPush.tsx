@@ -24,6 +24,17 @@ const socialMediaPlatforms = [
   "Other"
 ] as const;
 
+const newsCategories = [
+  "Announcement",
+  "General",
+  "Events",
+  "Technology",
+  "Policy",
+  "Politics",
+  "Social",
+  "Other"
+] as const;
+
 export default function ContentPush() {
   const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [newsItems, setNewsItems] = useState<NewsItem[]>([]);
@@ -34,6 +45,7 @@ export default function ContentPush() {
   
   // Create form state
   const [audience, setAudience] = useState<(typeof audienceTypes)[number]>("All Members");
+  const [category, setCategory] = useState<(typeof newsCategories)[number]>("Announcement");
   const [titleEn, setTitleEn] = useState("");
   const [titleTe, setTitleTe] = useState("");
   const [descEn, setDescEn] = useState("");
@@ -55,6 +67,7 @@ export default function ContentPush() {
 
   // Edit form state
   const [editingNews, setEditingNews] = useState<NewsItem | null>(null);
+  const [editCategory, setEditCategory] = useState<(typeof newsCategories)[number]>("Announcement");
   const [editTitleEn, setEditTitleEn] = useState("");
   const [editTitleTe, setEditTitleTe] = useState("");
   const [editDescEn, setEditDescEn] = useState("");
@@ -227,6 +240,9 @@ export default function ContentPush() {
   // Open edit modal
   const handleEdit = (news: NewsItem) => {
     setEditingNews(news);
+    // Set category - capitalize first letter to match our category options
+    const newsCategory = news.category ? news.category.charAt(0).toUpperCase() + news.category.slice(1).toLowerCase() : "Announcement";
+    setEditCategory((newsCategories.includes(newsCategory as any) ? newsCategory : "Announcement") as typeof newsCategories[number]);
     setEditTitleEn(news.title.en);
     setEditTitleTe(news.title.te);
     setEditDescEn(news.description.en);
@@ -304,7 +320,7 @@ export default function ContentPush() {
         description_en: editDescEn || editTitleEn,
         description_te: editDescTe.trim() || editDescEn || editTitleEn,
         is_published: editIsPublished,
-        category: editingNews.category || "announcement",
+        category: editCategory.toLowerCase(),
         districtIds: editGeographicAccess.postToAll ? undefined : (editGeographicAccess.districtIds.length > 0 ? editGeographicAccess.districtIds : undefined),
         mandalIds: editGeographicAccess.postToAll ? undefined : (editGeographicAccess.mandalIds.length > 0 ? editGeographicAccess.mandalIds : undefined),
         assemblyConstituencyIds: editGeographicAccess.postToAll ? undefined : (editGeographicAccess.assemblyConstituencyIds.length > 0 ? editGeographicAccess.assemblyConstituencyIds : undefined),
@@ -430,7 +446,7 @@ export default function ContentPush() {
         description_te: descTe.trim() || descEn || titleEn, // Use English as fallback
         target_roles: getRolesFromAudience(),
         content_type: "news",
-        category: "announcement",
+        category: category.toLowerCase(),
         // Add geographic access fields
         districtIds: geographicAccess.postToAll ? undefined : (geographicAccess.districtIds.length > 0 ? geographicAccess.districtIds : undefined),
         mandalIds: geographicAccess.postToAll ? undefined : (geographicAccess.mandalIds.length > 0 ? geographicAccess.mandalIds : undefined),
@@ -464,6 +480,7 @@ export default function ContentPush() {
       
       // Clear form after success
       setTimeout(() => {
+        setCategory("Announcement");
         setTitleEn("");
         setTitleTe("");
         setDescEn("");
@@ -708,6 +725,22 @@ export default function ContentPush() {
                   titleTeManualEdit.current = true;
                 }}
               />
+            </div>
+
+            {/* Category */}
+            <div>
+              <label className="text-sm font-medium">Category *</label>
+              <select
+                className="mt-1 w-full px-3 py-2 rounded-md border bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-300"
+                value={category}
+                onChange={(e) => setCategory(e.target.value as typeof newsCategories[number])}
+              >
+                {newsCategories.map((cat) => (
+                  <option key={cat} value={cat}>
+                    {cat}
+                  </option>
+                ))}
+              </select>
             </div>
 
             {/* Description English */}
