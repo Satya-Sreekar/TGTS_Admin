@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef } from "react";
-import { Megaphone, UploadCloud, CheckCircle, AlertCircle, X, Edit, Trash2, List, Plus, Eye, EyeOff } from "lucide-react";
+import { Megaphone, UploadCloud, CheckCircle, AlertCircle, X, Edit, Trash2, List, Plus, Eye, EyeOff, MapPin, Users } from "lucide-react";
 import { adminService, type NewsItem } from "../../services/adminService";
 import { mediaService } from "../../services/mediaService";
 import { translationService } from "../../services/translationService";
 import GeographicAccessSelector, { type GeographicAccessData } from "../../components/GeographicAccessSelector";
+import { districtsService, type District, type Mandal } from "../../services/districtsService";
+import { constituencyService, type ParliamentaryConstituency } from "../../services/constituencyService";
 
 const audienceTypes = ["All Members", "Cadre Only", "Public"] as const;
 type ViewMode = "create" | "list";
@@ -95,6 +97,12 @@ export default function ContentPush() {
   const editTitleTeManualEdit = useRef(false);
   const editDescTeManualEdit = useRef(false);
 
+  // Location data for displaying publication details
+  const [districts, setDistricts] = useState<District[]>([]);
+  const [mandals, setMandals] = useState<Mandal[]>([]);
+  const [parliamentaryConstituencies, setParliamentaryConstituencies] = useState<ParliamentaryConstituency[]>([]);
+  const [assemblyConstituencies, setAssemblyConstituencies] = useState<any[]>([]);
+
   const estimatedReach = 15428; // placeholder to match screenshot
 
   // Load news items
@@ -103,6 +111,82 @@ export default function ContentPush() {
       loadNews();
     }
   }, [viewMode, currentPage]);
+
+  // Load location data for displaying publication details
+  useEffect(() => {
+    const loadLocationData = async () => {
+      try {
+        const [districtsData, constituenciesData] = await Promise.all([
+          districtsService.getDistricts({ state: 'Telangana', is_active: true }),
+          constituencyService.getConstituencies({ state: 'Telangana', is_active: true }),
+        ]);
+        setDistricts(districtsData);
+        setParliamentaryConstituencies(constituenciesData);
+      } catch (error) {
+        console.error('Failed to load location data:', error);
+      }
+    };
+    loadLocationData();
+  }, []);
+
+  // Load mandals and assembly constituencies when needed
+  useEffect(() => {
+    const loadMandalsAndAssembly = async () => {
+      if (newsItems.length === 0) return;
+      
+      try {
+        // Collect all unique district IDs from news items
+        const districtIds = new Set<number>();
+        const parliamentIds = new Set<number>();
+        
+        newsItems.forEach(news => {
+          news.districtIds?.forEach(id => districtIds.add(id));
+          news.parliamentaryConstituencyIds?.forEach(id => parliamentIds.add(id));
+        });
+
+        // Load mandals for all districts
+        if (districtIds.size > 0) {
+          const allMandals: Mandal[] = [];
+          for (const districtId of districtIds) {
+            try {
+              const mandalsForDistrict = await districtsService.getMandalsForDistrict(districtId, { is_active: true });
+              allMandals.push(...mandalsForDistrict);
+            } catch (error) {
+              console.error(`Failed to load mandals for district ${districtId}:`, error);
+            }
+          }
+          // Remove duplicates
+          const uniqueMandals = Array.from(new Map(allMandals.map(m => [m.id, m])).values());
+          setMandals(uniqueMandals);
+        }
+
+        // Load assembly constituencies for all parliamentary constituencies
+        if (parliamentIds.size > 0) {
+          const allAssembly: any[] = [];
+          for (const parliamentId of parliamentIds) {
+            try {
+              const assemblyForParliament = await constituencyService.getAssemblyConstituencies({
+                parliamentary_constituency_id: parliamentId,
+                is_active: true,
+              });
+              allAssembly.push(...assemblyForParliament);
+            } catch (error) {
+              console.error(`Failed to load assembly constituencies for parliament ${parliamentId}:`, error);
+            }
+          }
+          // Remove duplicates
+          const uniqueAssembly = Array.from(new Map(allAssembly.map(a => [a.id, a])).values());
+          setAssemblyConstituencies(uniqueAssembly);
+        }
+      } catch (error) {
+        console.error('Failed to load mandals and assembly constituencies:', error);
+      }
+    };
+
+    if (newsItems.length > 0) {
+      loadMandalsAndAssembly();
+    }
+  }, [newsItems]);
 
   // Auto-translate Title English to Telugu
   useEffect(() => {
@@ -419,6 +503,85 @@ export default function ContentPush() {
     return [];
   };
 
+  // Helper function to get location names from IDs
+  const getLocationNames = (news: NewsItem) => {
+    const locations: string[] = [];
+    
+    // Check if published to all (no geographic restrictions)
+    const hasGeographicRestrictions = 
+      (news.districtIds && news.districtIds.length > 0) ||
+      (news.mandalIds && news.mandalIds.length > 0) ||
+      (news.assemblyConstituencyIds && news.assemblyConstituencyIds.length > 0) ||
+      (news.parliamentaryConstituencyIds && news.parliamentaryConstituencyIds.length > 0);
+
+    if (!hasGeographicRestrictions) {
+      locations.push("All Locations");
+      return locations;
+    }
+
+    // Get district names
+    if (news.districtIds && news.districtIds.length > 0) {
+      const districtNames = news.districtIds
+        .map(id => {
+          const district = districts.find(d => d.id === id);
+          return district?.name_en || `District #${id}`;
+        });
+      if (districtNames.length > 0) {
+        const displayText = districtNames.length > 3 
+          ? `${districtNames.slice(0, 3).join(", ")} +${districtNames.length - 3} more`
+          : districtNames.join(", ");
+        locations.push(`Districts: ${displayText}`);
+      }
+    }
+
+    // Get mandal names
+    if (news.mandalIds && news.mandalIds.length > 0) {
+      const mandalNames = news.mandalIds
+        .map(id => {
+          const mandal = mandals.find(m => m.id === id);
+          return mandal?.name_en || `Mandal #${id}`;
+        });
+      if (mandalNames.length > 0) {
+        const displayText = mandalNames.length > 3 
+          ? `${mandalNames.slice(0, 3).join(", ")} +${mandalNames.length - 3} more`
+          : mandalNames.join(", ");
+        locations.push(`Mandals: ${displayText}`);
+      }
+    }
+
+    // Get parliamentary constituency names
+    if (news.parliamentaryConstituencyIds && news.parliamentaryConstituencyIds.length > 0) {
+      const parliamentNames = news.parliamentaryConstituencyIds
+        .map(id => {
+          const parliament = parliamentaryConstituencies.find(p => p.id === id);
+          return parliament?.name_en || `Parliament #${id}`;
+        });
+      if (parliamentNames.length > 0) {
+        const displayText = parliamentNames.length > 3 
+          ? `${parliamentNames.slice(0, 3).join(", ")} +${parliamentNames.length - 3} more`
+          : parliamentNames.join(", ");
+        locations.push(`Parliamentary Constituencies: ${displayText}`);
+      }
+    }
+
+    // Get assembly constituency names
+    if (news.assemblyConstituencyIds && news.assemblyConstituencyIds.length > 0) {
+      const assemblyNames = news.assemblyConstituencyIds
+        .map(id => {
+          const assembly = assemblyConstituencies.find(a => a.id === id);
+          return assembly?.name_en || `Assembly #${id}`;
+        });
+      if (assemblyNames.length > 0) {
+        const displayText = assemblyNames.length > 3 
+          ? `${assemblyNames.slice(0, 3).join(", ")} +${assemblyNames.length - 3} more`
+          : assemblyNames.join(", ");
+        locations.push(`Assembly Constituencies: ${displayText}`);
+      }
+    }
+
+    return locations.length > 0 ? locations : ["All Locations"];
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -640,6 +803,37 @@ export default function ContentPush() {
                         </div>
                       </div>
                       
+                      {/* Publication Details */}
+                      <div className="mt-3 pt-3 border-t border-gray-200">
+                        <div className="flex flex-col gap-2.5">
+                          {/* Audience */}
+                          <div className="flex items-start gap-2">
+                            <Users className="w-4 h-4 text-orange-500 mt-0.5 flex-shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <div className="text-xs font-semibold text-gray-700 mb-0.5">Published To:</div>
+                              <div className="text-xs text-gray-600 bg-gray-50 px-2 py-1 rounded inline-block">
+                                All Members
+                              </div>
+                            </div>
+                          </div>
+                          
+                          {/* Geographic Locations */}
+                          <div className="flex items-start gap-2">
+                            <MapPin className="w-4 h-4 text-orange-500 mt-0.5 flex-shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <div className="text-xs font-semibold text-gray-700 mb-0.5">Published In:</div>
+                              <div className="text-xs text-gray-600 space-y-1">
+                                {getLocationNames(news).map((location, idx) => (
+                                  <div key={idx} className="bg-gray-50 px-2 py-1 rounded">
+                                    {location}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
                       <div className="flex items-center justify-between mt-4">
                         <div className="text-xs text-gray-500">
                           {new Date(news.date).toLocaleDateString()}
