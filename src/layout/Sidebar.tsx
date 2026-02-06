@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { Home, Users, Megaphone, CalendarDays, Upload, Languages, Image, X, MapPin, Map } from "lucide-react";
+import { Home, Users, Megaphone, CalendarDays, Upload, Languages, Image, X, MapPin, Map, Settings } from "lucide-react";
 import { useState } from "react";
 
 const nav = [
@@ -10,7 +10,8 @@ const nav = [
   { to: "/media", label: "Media Gallery", icon: Image },
   { to: "/uploads", label: "Upload Documents", icon: Upload },
   { to: "/constituencies", label: "Constituencies", icon: MapPin },
-  { to: "/districts", label: "Districts & Mandals", icon: Map }
+  { to: "/districts", label: "Districts & Mandals", icon: Map },
+  { to: "/settings", label: "Settings", icon: Settings },
 ];
 
 interface SidebarProps {

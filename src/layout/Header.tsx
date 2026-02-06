@@ -23,6 +23,8 @@ export default function Header({ onMenuClick }: HeaderProps) {
     if (pathname === "/analytics") return "Analytics";
     if (pathname === "/uploads") return "Upload Documents";
     if (pathname === "/profile") return "My Profile";
+    if (pathname === "/settings") return "Settings";
+    if (pathname === "/districts") return "Districts & Mandals";
     return "Admin Panel";
   };
 

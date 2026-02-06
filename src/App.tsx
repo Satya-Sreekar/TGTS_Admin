@@ -11,6 +11,8 @@ import ConstituencyManagement from "./features/constituencies/ConstituencyManage
 import DistrictsManagement from "./features/districts/DistrictsManagement";
 import Login from "./pages/Login";
 import Profile from "./pages/Profile";
+import Settings from "./pages/Settings";
+import VerifyMember from "./pages/VerifyMember";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 export default function App() {
@@ -18,7 +20,11 @@ export default function App() {
   
   return (
     <Routes>
+      {/* Public routes (no auth required) */}
       <Route path="/login" element={<Login />} />
+      <Route path="/verify/:memberId" element={<VerifyMember />} />
+      
+      {/* Protected routes */}
       <Route
         path="/"
         element={
@@ -37,6 +43,7 @@ export default function App() {
         <Route path="analytics" element={<PagePlaceholder title="Analytics" />} />
         <Route path="uploads" element={<UploadDocuments />} />
         <Route path="profile" element={<Profile />} />
+        <Route path="settings" element={<Settings />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
