@@ -3,10 +3,14 @@ import {
   Search,
   ChevronDown,
   CheckCircle2,
+  Clock,
+  XCircle,
   Eye,
   Edit2,
   X,
   Save,
+  ThumbsUp,
+  ThumbsDown,
 } from "lucide-react";
 import clsx from "clsx";
 import { memberService } from "../../services/memberService";
@@ -25,7 +29,7 @@ type UserRow = {
   constituency?: string;
   role: "CADRE" | "PUBLIC" | "ADMIN";
   date: string;
-  status: "active" | "inactive";
+  status: "pending" | "approved" | "rejected";
   memberData: Member;
 };
 
@@ -41,16 +45,37 @@ function RolePill({ role }: { role: UserRow["role"] }) {
 }
 
 function StatusPill({ status }: { status: UserRow["status"] }) {
-  const isActive = status === "active";
+  const config = {
+    approved: {
+      classes: "bg-green-50 text-green-700 border border-green-200",
+      icon: <CheckCircle2 className="w-3 h-3" />,
+      label: "Approved",
+    },
+    pending: {
+      classes: "bg-yellow-50 text-yellow-700 border border-yellow-200",
+      icon: <Clock className="w-3 h-3" />,
+      label: "Pending",
+    },
+    rejected: {
+      classes: "bg-red-50 text-red-700 border border-red-200",
+      icon: <XCircle className="w-3 h-3" />,
+      label: "Rejected",
+    },
+  }[status] ?? {
+    classes: "bg-gray-50 text-gray-700 border",
+    icon: <Clock className="w-3 h-3" />,
+    label: status,
+  };
+
   return (
     <span
       className={clsx(
         "px-3 py-1 rounded-full text-xs font-medium inline-flex items-center gap-1",
-        isActive ? "bg-green-50 text-green-700 border border-green-200" : "bg-gray-50 text-gray-700 border"
+        config.classes
       )}
     >
-      <CheckCircle2 className="w-3 h-3" />
-      {status}
+      {config.icon}
+      {config.label}
     </span>
   );
 }
@@ -113,8 +138,6 @@ export default function UserManagement() {
       ? new Date(member.createdAt).toLocaleDateString('en-GB') 
       : 'N/A';
     
-    const isActive = member.isActive ?? true;
-    
     const memberRoleRaw = member.role?.toUpperCase() || "PUBLIC";
     const memberRole = ["CADRE", "PUBLIC", "ADMIN"].includes(memberRoleRaw) 
       ? (memberRoleRaw as "CADRE" | "PUBLIC" | "ADMIN") 
@@ -134,7 +157,7 @@ export default function UserManagement() {
       constituency: constituencyName || undefined,
       role: memberRole,
       date: dateStr,
-      status: isActive ? 'active' : 'inactive',
+      status: (member.status as "pending" | "approved" | "rejected") || 'pending',
       memberData: member,
     };
   };
@@ -358,14 +381,20 @@ export default function UserManagement() {
 
   const handleStatusChange = async (memberId: string, newStatus: 'pending' | 'approved' | 'rejected') => {
     try {
+      setError(null);
       await memberService.updateMemberStatus(memberId, newStatus);
-      setSuccess('Member status updated successfully');
+      setSuccess(`Member ${newStatus === 'approved' ? 'approved' : newStatus === 'rejected' ? 'rejected' : 'status updated'} successfully`);
       setTimeout(() => setSuccess(null), 3000);
       
       // Refresh just this member's data
       const updatedMember = await memberService.getMemberById(memberId);
       
-      // Update local state
+      // Update the selected member if the detail modal is open for this member
+      if (selectedMember && selectedMember.id === memberId) {
+        setSelectedMember(updatedMember);
+      }
+      
+      // Update local state in the table
       setUsers(currentUsers => 
         currentUsers.map(u => 
           u.id === memberId ? mapMemberToUserRow(updatedMember) : u
@@ -499,7 +528,7 @@ export default function UserManagement() {
                         <StatusPill status={u.status} />
                       </td>
                       <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1">
                           <button
                             onClick={() => handleViewDetails(u.id)}
                             className="p-2 text-blue-600 hover:bg-blue-50 rounded-md transition"
@@ -509,11 +538,29 @@ export default function UserManagement() {
                           </button>
                           <button
                             onClick={() => handleEdit(u.memberData)}
-                            className="p-2 text-green-600 hover:bg-green-50 rounded-md transition"
+                            className="p-2 text-gray-600 hover:bg-gray-50 rounded-md transition"
                             title="Edit"
                           >
                             <Edit2 className="w-4 h-4" />
                           </button>
+                          {u.status !== 'approved' && (
+                            <button
+                              onClick={() => handleStatusChange(u.id, 'approved')}
+                              className="p-2 text-green-600 hover:bg-green-50 rounded-md transition"
+                              title="Approve"
+                            >
+                              <ThumbsUp className="w-4 h-4" />
+                            </button>
+                          )}
+                          {u.status !== 'rejected' && (
+                            <button
+                              onClick={() => handleStatusChange(u.id, 'rejected')}
+                              className="p-2 text-red-600 hover:bg-red-50 rounded-md transition"
+                              title="Reject"
+                            >
+                              <ThumbsDown className="w-4 h-4" />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -539,7 +586,7 @@ export default function UserManagement() {
                       <div className="text-xs text-gray-500 mt-1">{u.email}</div>
                       <div className="text-sm text-gray-700 mt-1">{u.contact}</div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1">
                       <button
                         onClick={() => handleViewDetails(u.id)}
                         className="p-2 text-blue-600 hover:bg-blue-50 rounded-md"
@@ -548,7 +595,7 @@ export default function UserManagement() {
                       </button>
                       <button
                         onClick={() => handleEdit(u.memberData)}
-                        className="p-2 text-green-600 hover:bg-green-50 rounded-md"
+                        className="p-2 text-gray-600 hover:bg-gray-50 rounded-md"
                       >
                         <Edit2 className="w-4 h-4" />
                       </button>
@@ -570,9 +617,29 @@ export default function UserManagement() {
                       <span className="ml-2 text-gray-700">{u.date}</span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <RolePill role={u.role} />
-                    <StatusPill status={u.status} />
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <RolePill role={u.role} />
+                      <StatusPill status={u.status} />
+                    </div>
+                    <div className="flex items-center gap-1">
+                      {u.status !== 'approved' && (
+                        <button
+                          onClick={() => handleStatusChange(u.id, 'approved')}
+                          className="px-3 py-1.5 text-xs font-medium text-green-700 bg-green-50 border border-green-200 rounded-md hover:bg-green-100 transition"
+                        >
+                          Approve
+                        </button>
+                      )}
+                      {u.status !== 'rejected' && (
+                        <button
+                          onClick={() => handleStatusChange(u.id, 'rejected')}
+                          className="px-3 py-1.5 text-xs font-medium text-red-700 bg-red-50 border border-red-200 rounded-md hover:bg-red-100 transition"
+                        >
+                          Reject
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}
