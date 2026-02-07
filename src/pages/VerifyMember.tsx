@@ -133,6 +133,9 @@ function VerificationCard({ member }: { member: VerifyMemberResponse }) {
           {member.partyDesignation && (
             <DetailRow label="Party Designation" value={member.partyDesignation} />
           )}
+          {member.cadreLevelName && (
+            <DetailRow label="Cadre Level" value={member.cadreLevelName} />
+          )}
           {member.district && (
             <DetailRow label="District" value={member.district} />
           )}

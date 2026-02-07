@@ -1084,6 +1084,15 @@ export default function EventManagement() {
                 <p className="mt-1 text-xs text-gray-500">
                   Controls who can view this event in the mobile app
                 </p>
+                {accessLevel === 'cadre' && (
+                  <div className="mt-2 p-2 bg-blue-50 rounded-md border border-blue-200">
+                    <p className="text-xs text-blue-700">
+                      <strong>Hierarchy Note:</strong> Cadre content visibility follows the 10-level party hierarchy. 
+                      When a cadre user creates content, it&apos;s automatically scoped to their geographic level 
+                      (state/district/mandal/booth) and visible to users at their level and below.
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* Geographic Access Control */}

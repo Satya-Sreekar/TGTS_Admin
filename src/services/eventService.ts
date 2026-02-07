@@ -21,6 +21,7 @@ export type Event = {
   rsvpCount: number;
   isPublished: boolean;
   accessLevel?: string;  // 'public', 'cadre', or 'admin'
+  creatorCadreLevel?: number;
   districtIds?: number[];
   mandalIds?: number[];
   assemblyConstituencyIds?: number[];

@@ -1,6 +1,18 @@
 import api from './api';
 import type { PaginatedResponse } from './userService';
 
+export type CadreLevel = {
+  level: number;
+  nameEn: string;
+  nameTe: string;
+  geographicScope: 'state' | 'district' | 'mandal' | 'booth';
+};
+
+export type CadreLevelsResponse = {
+  cadreLevels: CadreLevel[];
+  total: number;
+};
+
 export type Member = {
   id: string;
   fullName: string;
@@ -30,6 +42,8 @@ export type Member = {
   };
   fullAddress?: string;
   partyDesignation?: string;
+  cadreLevel?: number;
+  cadreLevelRef?: CadreLevel;
   occupation?: string;
   volunteerInterest: boolean;
   hasInsurance: boolean;
@@ -64,6 +78,7 @@ export type MemberUpdateData = {
   assemblyConstituencyId?: number;
   fullAddress?: string;
   partyDesignation?: string;
+  cadreLevel?: number | null;
   occupation?: string;
   volunteerInterest?: boolean;
   hasInsurance?: boolean;
@@ -74,6 +89,12 @@ export type MemberUpdateData = {
 };
 
 export const memberService = {
+  // Get all cadre levels (predefined hierarchy)
+  async getCadreLevels(): Promise<CadreLevelsResponse> {
+    const response = await api.get('/cadre-levels/');
+    return response.data;
+  },
+
   // Get all members (admin/cadre only)
   async getMembers(filters: MemberFilters = {}): Promise<PaginatedResponse<Member>> {
     const response = await api.get('/members/', { params: filters });

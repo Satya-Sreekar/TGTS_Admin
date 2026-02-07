@@ -1004,6 +1004,15 @@ export default function MediaManagement() {
                   Selected: <span className="font-medium capitalize">{selectedAccessLevel}</span> 
                   {selectedAccessLevel !== "public" && ` (includes: ${getAccessLevelsArray(selectedAccessLevel).join(", ")})`}
                 </p>
+                {selectedAccessLevel === "cadre" && (
+                  <div className="mt-2 p-2 bg-blue-50 rounded-md border border-blue-200">
+                    <p className="text-xs text-blue-700">
+                      <strong>Hierarchy Note:</strong> Cadre content follows the 10-level party hierarchy. 
+                      When created by a cadre user in the mobile app, geographic scope is auto-determined 
+                      by their cadre level. Admin-created content uses the geographic settings below.
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* Geographic Access Control */}
@@ -1130,6 +1139,14 @@ export default function MediaManagement() {
                   Selected: <span className="font-medium capitalize">{editSelectedAccessLevel}</span> 
                   {editSelectedAccessLevel !== "public" && ` (includes: ${getAccessLevelsArray(editSelectedAccessLevel).join(", ")})`}
                 </p>
+                {editSelectedAccessLevel === "cadre" && editingMedia.creatorCadreLevel && (
+                  <div className="mt-2 p-2 bg-indigo-50 rounded-md border border-indigo-200">
+                    <p className="text-xs text-indigo-700">
+                      <strong>Creator Cadre Level:</strong> {editingMedia.creatorCadreLevel} — 
+                      This content&apos;s visibility is governed by the creator&apos;s hierarchy level and geographic scope.
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* Geographic Access Control */}

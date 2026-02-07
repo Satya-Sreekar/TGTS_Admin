@@ -16,7 +16,7 @@ import clsx from "clsx";
 import { memberService } from "../../services/memberService";
 import { constituencyService } from "../../services/constituencyService";
 import { districtsService } from "../../services/districtsService";
-import type { Member, MemberUpdateData } from "../../services/memberService";
+import type { Member, MemberUpdateData, CadreLevel } from "../../services/memberService";
 import type { ParliamentaryConstituency } from "../../services/constituencyService";
 import type { District, Mandal } from "../../services/districtsService";
 
@@ -102,6 +102,7 @@ export default function UserManagement() {
   const [loadingMandals, setLoadingMandals] = useState(false);
   const [selectedDistrictId, setSelectedDistrictId] = useState<number | null>(null);
   const [selectedMandalId, setSelectedMandalId] = useState<number | null>(null);
+  const [cadreLevels, setCadreLevels] = useState<CadreLevel[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -131,6 +132,19 @@ export default function UserManagement() {
       }
     };
     fetchDistricts();
+  }, []);
+
+  // Fetch cadre levels for dropdown
+  useEffect(() => {
+    const fetchCadreLevels = async () => {
+      try {
+        const data = await memberService.getCadreLevels();
+        setCadreLevels(data.cadreLevels || []);
+      } catch (err) {
+        console.error('Failed to fetch cadre levels:', err);
+      }
+    };
+    fetchCadreLevels();
   }, []);
 
   const mapMemberToUserRow = (member: Member): UserRow => {
@@ -226,6 +240,7 @@ export default function UserManagement() {
       assemblyConstituencyId: member.assemblyConstituencyId,
       fullAddress: member.fullAddress,
       partyDesignation: member.partyDesignation,
+      cadreLevel: member.cadreLevel,
       occupation: member.occupation,
       status: member.status,
       isActive: member.isActive,
@@ -505,6 +520,7 @@ export default function UserManagement() {
                     <th className="px-4 py-3 font-medium">Region</th>
                     <th className="px-4 py-3 font-medium">Constituency</th>
                     <th className="px-4 py-3 font-medium">Role</th>
+                    <th className="px-4 py-3 font-medium">Cadre Level</th>
                     <th className="px-4 py-3 font-medium">Date</th>
                     <th className="px-4 py-3 font-medium">Status</th>
                     <th className="px-4 py-3 font-medium">Actions</th>
@@ -522,6 +538,16 @@ export default function UserManagement() {
                       <td className="px-4 py-3 text-gray-700">{u.constituency || '-'}</td>
                       <td className="px-4 py-3">
                         <RolePill role={u.role} />
+                      </td>
+                      <td className="px-4 py-3 text-gray-700 text-xs">
+                        {u.memberData.cadreLevelRef ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
+                            <span className="font-bold">{u.memberData.cadreLevelRef.level}</span>
+                            <span className="hidden lg:inline">{u.memberData.cadreLevelRef.nameEn.length > 20 ? u.memberData.cadreLevelRef.nameEn.slice(0, 20) + '…' : u.memberData.cadreLevelRef.nameEn}</span>
+                          </span>
+                        ) : (
+                          <span className="text-gray-400">—</span>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-gray-700">{u.date}</td>
                       <td className="px-4 py-3">
@@ -745,6 +771,21 @@ export default function UserManagement() {
                     )}>
                       {selectedMember.status}
                     </span>
+                  </div>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Cadre Level</label>
+                  <div className="mt-1">
+                    {selectedMember.cadreLevelRef ? (
+                      <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-700 border border-indigo-200">
+                        <span className="font-bold">{selectedMember.cadreLevelRef.level}.</span>
+                        {selectedMember.cadreLevelRef.nameEn}
+                      </span>
+                    ) : selectedMember.cadreLevel ? (
+                      <span className="text-gray-900">Level {selectedMember.cadreLevel}</span>
+                    ) : (
+                      <span className="text-gray-400">Not assigned</span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -998,7 +1039,22 @@ export default function UserManagement() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Party Designation</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Cadre Level</label>
+                  <select
+                    value={editData.cadreLevel ?? ''}
+                    onChange={(e) => setEditData({ ...editData, cadreLevel: e.target.value ? Number(e.target.value) : null })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-orange-500"
+                  >
+                    <option value="">Not Assigned</option>
+                    {cadreLevels.map((cl) => (
+                      <option key={cl.level} value={cl.level}>
+                        {cl.level}. {cl.nameEn} ({cl.geographicScope})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Party Designation (Optional)</label>
                   <input
                     type="text"
                     value={editData.partyDesignation || ''}

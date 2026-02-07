@@ -12,6 +12,7 @@ export type MediaItem = {
   date: string;
   isPublished: boolean;
   access_level?: Array<"public" | "cadre" | "admin">;
+  creatorCadreLevel?: number;
   districtIds?: number[];
   mandalIds?: number[];
   assemblyConstituencyIds?: number[];

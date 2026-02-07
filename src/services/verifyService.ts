@@ -11,6 +11,8 @@ export interface VerifyMemberResponse {
   status: string;
   profilePictureUrl: string | null;
   partyDesignation: string | null;
+  cadreLevel: number | null;
+  cadreLevelName: string | null;
   district: string | null;
   assemblyConstituency: string | null;
   isVerified: boolean;
